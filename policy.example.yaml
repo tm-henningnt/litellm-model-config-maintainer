@@ -1,0 +1,454 @@
+# Example Policy for litellm-model-config-maintainer.
+#
+# Policy is the operator's hand-written declaration of which Offerings
+# the tool may use, under which Aliases, and which Offerings are
+# withheld and why. Write it once, by hand. Edit it by hand later.
+# Nothing in this project writes to Policy at run time.
+#
+# This file carries every supported field. Copy it, then replace each
+# fictional id and value with your own. No value here is real: the
+# provider ids, model ids and Aliases below do not exist.
+#
+# Validate a Policy with:
+#   python -m litellm_maintainer.cli validate --policy policy.yaml
+
+# ─────────────────────────────────────────────────────────────
+# providers
+#
+# One entry per provider. Each entry states a selection `mode`:
+#
+#   all:   take every Offering the provider publishes, after the
+#          baseline filter (tool use required; image, audio, video,
+#          embedding and safety Offerings excluded).
+#   named: take only the Offerings listed under `models`.
+#
+# `models`, when present, holds Offering ids in the form
+# `<provider>:<provider_model_id>`. It is required when mode is
+# `named`.
+#
+# `pricing`, when present, admits only the listed pricing kinds (one or
+# more of free, free_tier, paid, unknown, subscription_included).
+#
+# WARNING: never set `pricing` for a provider whose free tier is an
+# account entitlement. An unpriced Offering carries the pricing kind
+# `unknown`, which means the Feed publishes no price. It does not mean
+# paid. A provider can be free to your account for a reason the Feed
+# cannot observe — a subscription, a grandfathered plan, a company
+# account. Setting a pricing filter there admits nothing, because the
+# Feed never marks such an Offering `free`. Express an account-level
+# free tier by omitting the pricing filter for that provider, never by
+# expecting the Feed to state it.
+#
+# `translation`, when present, overrides the built-in translation rule
+# for every Offering of this provider. Use it only for a provider whose
+# calling convention needs an exception; leave it unset otherwise.
+#
+# `entitlement`, when present, states whether this provider bills every
+# Offering from one shared pool (`shared_pool`) or bills each Offering
+# against its own limit (`per_model`). `per_model` is the default,
+# because it never over-claims. Setting it changes only how
+# `entitlements` and `guidance` report this provider. It never excludes
+# an Offering and never marks a sibling Offering unusable: a shared pool
+# can run dry on its paid Offerings while its free Offerings keep
+# answering, and forward inference would evict the free ones on a guess.
+# See ADR 0004.
+# ─────────────────────────────────────────────────────────────
+providers:
+  # A curated subscription pool: take every model it offers.
+  example-subscription-pool:
+    mode: all
+
+  # A large free-tier mirror: take only the free Offerings.
+  example-free-mirror:
+    mode: all
+    pricing: [free, free_tier]
+
+  # A provider whose free tier is an account entitlement. The Feed
+  # marks its Offerings paid or unknown, never free, because it cannot
+  # see your billing arrangement. No pricing filter here — see the
+  # warning above. It bills every Offering from one shared pool, so
+  # report it that way.
+  example-account-entitlement-provider:
+    mode: all
+    entitlement: shared_pool
+
+  # A mixed provider: name the specific models you want, ignore price.
+  example-mixed-provider:
+    mode: named
+    models:
+      - "example-mixed-provider:coder-large"
+      - "example-mixed-provider:coder-small"
+
+  # A provider needing a translation override for one exceptional case.
+  example-legacy-provider:
+    mode: named
+    models:
+      - "example-legacy-provider:legacy-model-1"
+    translation:
+      strip_model_prefix: true
+
+  # A provider selling one roster per subscription edition. The Feed
+  # lists each Offering's editions at
+  # `pricing.subscription.plan_editions`; `plan_edition` names the one
+  # the operator holds, and only an Offering on that roster is admitted.
+  # Selection and the Prober both apply it, so a model the edition
+  # excludes is never written to the config and never probed.
+  #
+  # Ask the operator which edition they hold. It can never be inferred
+  # from the provider id: the Feed publishes ONE provider holding every
+  # edition's models, so filtering by provider alone hands a
+  # narrower-edition subscriber models that answer HTTP 403.
+  #
+  # Warning: an Offering no plan covers publishes no `plan_editions`, so
+  # this filter excludes it. Never set `plan_edition` for a provider
+  # whose catalogue mixes subscription and pay-as-you-go Offerings, or
+  # the pay-as-you-go ones disappear.
+  #
+  # Prefer this to a Withheld list. A hand-written list of the models
+  # your edition lacks goes stale the moment the provider moves one
+  # between editions, and the only symptom is a 403.
+  example-tiered-subscription-provider:
+    mode: all
+    plan_edition: "personal"
+
+  # A provider that wraps a successful response, where the Feed does not
+  # say so. `response_envelope_key` names the wrapper key. The Generator
+  # then routes every Offering of this provider through the
+  # envelope-unwrapping handler, and emits the matching
+  # `custom_provider_map` entry.
+  #
+  # The Feed's own `endpoint.protocol_options.response_envelope_key`
+  # always wins. Set this only for what the Feed omits, and only after a
+  # call measured the wrapper: read the raw body and look for the real
+  # payload under one key, with no top-level `choices`.
+  #
+  # Warning: leave it unset and every SUCCESS on the provider fails with
+  # "provider returned a response with no 'choices'". Errors still look
+  # normal, so the fault hides until a call succeeds.
+  example-wrapping-provider:
+    mode: all
+    response_envelope_key: "data"
+
+# ─────────────────────────────────────────────────────────────
+# quality
+#
+# The quality gate. An Offering scoring at or above
+# `minimum_coding_score` is admitted. An Offering with no score is a
+# Candidate: reported, never added, never dropped, until you admit it
+# through `approved_candidates` below.
+# ─────────────────────────────────────────────────────────────
+quality:
+  minimum_coding_score: 20
+
+# ─────────────────────────────────────────────────────────────
+# approved_candidates
+#
+# Offering ids you admit despite a missing quality score. Approving a
+# Candidate is one line: add its id here.
+# ─────────────────────────────────────────────────────────────
+approved_candidates:
+  - "example-free-mirror:vendor/new-model:free"
+
+# ─────────────────────────────────────────────────────────────
+# naming
+#
+# `provider_labels` maps a provider id to the label used in an Alias.
+# One entry here fixes the name of every Offering from that provider.
+#
+# The mechanical rule, applied to every Offering with no override.
+# Warning: apply the steps in this order. Lowercase the model
+# identifier. Keep only the part after the last `/`, which drops a
+# vendor path segment such as `google/`. Replace each `:` with `-`, so
+# a variant marker such as `:free` becomes an ordinary token. Split on
+# `-`, then drop a leading or a trailing token the provider label
+# already contains, but never a token in the middle. The Alias is
+# `alias_prefix` + the label + `-` + the surviving tokens joined by
+# `-`. The last step stops a repeat: the label `mixed` plus the model
+# `mixed-coder-large` gives `claude-mixed-coder-large`, and the label
+# `free-mirror` plus `vendor/coder-9b:free` gives
+# `claude-free-mirror-coder-9b`.
+#
+# `alias_overrides` maps a single Offering id to an exact Alias,
+# overriding the mechanical derivation for that one Offering. Use it
+# where an upstream identifier would otherwise force an ugly name, or
+# where you must preserve a name a client already depends on.
+#
+# `alias_prefix` is prepended to every derived Alias.
+# ─────────────────────────────────────────────────────────────
+naming:
+  alias_prefix: "claude-"
+  provider_labels:
+    example-subscription-pool: "sub-pool"
+    example-free-mirror: "free-mirror"
+    example-account-entitlement-provider: "acct-provider"
+    example-mixed-provider: "mixed"
+    example-legacy-provider: "legacy"
+  alias_overrides:
+    "example-mixed-provider:coder-large": "claude-mixed-coder-xl"
+
+# ─────────────────────────────────────────────────────────────
+# withheld
+#
+# Offering id to reason. The Prober never probes a Withheld Offering.
+# Only a human clears one, by removing its entry here.
+# ─────────────────────────────────────────────────────────────
+withheld:
+  "example-mixed-provider:coder-experimental": "billing terms unclear, clear this entry once confirmed"
+
+# ─────────────────────────────────────────────────────────────
+# declared
+#
+# An Offering the Feed does not publish. Passed through to Generated
+# Config verbatim, so a Feed change can never rewrite it. Each entry
+# states an `alias` and the `litellm_params` to write verbatim.
+#
+# Set `passthrough_auth: true` when credentials come from the calling
+# client rather than from the proxy. Two things follow: the Prober
+# never probes it, and a quota or authentication failure on it is
+# reported but never Excludes it, because such a failure belongs to one
+# caller and not to the Offering.
+#
+# Set `proxy_authenticated: true` on a `passthrough_auth` entry only
+# when the proxy in fact holds and resolves this Offering's credential
+# itself, from its own process environment -- not from the calling
+# client, despite `passthrough_auth` being set. Evidence for this: a
+# call carrying only the proxy's own master key, no client credential
+# at all, still returns a completion. This flag governs the smoke check
+# only. It lets the smoke check include the Offering, calling it under
+# the proxy's own credential, because that call now measures the real
+# thing. It changes nothing about the Prober or about `reduce`: both
+# still treat the entry as ordinary Passthrough Auth. Leave it unset
+# (default `false`) for a Passthrough Auth entry where the caller truly
+# supplies the credential.
+#
+# Set `supersedes` to the Feed Offering id this declaration replaces,
+# when a Declared Offering and a Discovered one would otherwise share
+# an Alias. A Declared Offering always wins the collision; `supersedes`
+# just records which Feed entry it replaces, so the run does not stop.
+#
+# `model_info` is optional and passed through verbatim next to
+# `litellm_params`, for a value litellm reads from there instead
+# (for example, a calling mode). Put this Offering's Stated Limit here:
+# `max_input_tokens` and `max_output_tokens`. State only a figure you
+# verified. litellm guesses 200000/64000 for any `claude-`-shaped model
+# absent from its own map. A wrong guess is therefore the default. See
+# docs/gotchas.md and ADR 0006.
+#
+# `capabilities` is optional and lists what this Offering can do, for
+# example "reasoning". The Feed publishes a capability list for a
+# Discovered Offering and nothing at all for a Declared one, so an agent
+# reading `guidance` learns nothing about a direct vendor entry unless
+# you state it here. Read by `guidance` alone; it never reaches the
+# Generated Config, because litellm has no such key.
+# ─────────────────────────────────────────────────────────────
+declared:
+  # A direct vendor entry, credentials supplied by the proxy itself.
+  - alias: "claude-example-direct-model"
+    litellm_params:
+      model: "anthropic/example-direct-model"
+
+  # A subscription entry whose credentials come from the caller, not
+  # from the proxy. No api_key here: the client supplies its own.
+  - alias: "claude-example-caller-subscription"
+    passthrough_auth: true
+    model_info:
+      mode: responses
+    litellm_params:
+      model: "chatgpt/example-caller-subscription-model"
+
+  # A Client-Facing Variant, and its plain sibling.
+  #
+  # Both send the SAME request. The provider never sees the `[1m]`
+  # suffix. The variant exists because a calling client reads its own
+  # context budget out of the Alias name: a client asks for the plain
+  # Alias, budgets 200000 tokens, and compacts against a model that
+  # accepts 1000000. See CONTEXT.md, "Client-Facing Variant", and
+  # ADR 0007.
+  #
+  # Do NOT add a `context-1m` beta header. The 1M window is the default
+  # and the maximum on this model family, and no header enables it.
+  #
+  # Both Aliases state the SAME Stated Limit, and must. They share one
+  # `litellm_params.model`, and litellm holds one cost-map entry per
+  # model string, so whichever entry is registered last defines both.
+  # `generate` warns when two such Aliases disagree.
+  - alias: "claude-example-1m-model"
+    passthrough_auth: true
+    capabilities: ["chat", "streaming", "tool_use", "reasoning", "vision"]
+    model_info:
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+    litellm_params:
+      model: "anthropic/example-1m-model"
+
+  - alias: "claude-example-1m-model[1m]"
+    passthrough_auth: true
+    capabilities: ["chat", "streaming", "tool_use", "reasoning", "vision"]
+    model_info:
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+    litellm_params:
+      model: "anthropic/example-1m-model"
+
+  # A declaration that supersedes a Feed Offering the operator prefers
+  # to call directly rather than through the Feed's own routing.
+  - alias: "claude-example-superseding-model"
+    supersedes: "example-mixed-provider:coder-large"
+    litellm_params:
+      model: "anthropic/example-superseding-model"
+      api_base: "os.environ/EXAMPLE_DIRECT_BASE_URL"
+      api_key: "os.environ/EXAMPLE_DIRECT_API_KEY"
+
+# ─────────────────────────────────────────────────────────────
+# client_facing_variants
+#
+# Whether the Generator adds a Client-Facing Variant: a second Alias for
+# the same Offering, carrying a suffix, so a calling client budgets the
+# Offering's whole context window. A client reads its own budget out of
+# the Alias name, not from what the proxy reports. See CONTEXT.md,
+# "Client-Facing Variant", and ADR 0007.
+#
+# Omit this whole block and the Generator adds no variant at all.
+#
+# `minimum_context_tokens` is the Feed-stated context window at which an
+# Offering qualifies. The FEED decides, so this cannot go stale: a model
+# that grows its window earns a variant on the next run, and a model the
+# Feed does not size earns none. Nothing is derived from a model name.
+#
+# `suffix` is the marker the client reads. Keep it consistent with the
+# threshold: `[1m]` means one million, so do not pair it with a threshold
+# of 200000.
+#
+# WARNING: a wider budget is a claim about the CLIENT, never about the
+# provider. The suffix makes a client willing to send a million tokens; it
+# does not make a provider accept them. Where a provider refuses the wider
+# window, a variant trades an early compaction for a hard refusal deep
+# into a long session. Set the threshold to a figure your providers really
+# serve.
+#
+# `operator_stated` names an Offering that qualifies even though the Feed
+# does not size it, mapped to your reason. The reason is required, because
+# this key asserts a window the Feed does not publish. It grants the
+# variant only: it writes no Stated Limit, since a variant needs none and
+# an unverified figure would add a claim without adding a capability.
+# `generate` warns when a line here names an Offering the run did not
+# admit, so a stale line cannot sit here granting nothing.
+# ─────────────────────────────────────────────────────────────
+client_facing_variants:
+  suffix: "[1m]"
+  minimum_context_tokens: 1000000
+  operator_stated:
+    "example-mixed-provider:coder-large": "vendor docs state 1M; the Feed sizes it at nothing yet"
+
+# ─────────────────────────────────────────────────────────────
+# pacing
+#
+# Per-provider Probe pacing: `concurrency` caps simultaneous Probes,
+# `minimum_interval_seconds` sets the minimum gap between two Probes to
+# the same provider. `default` applies to a provider with no entry of
+# its own. Give a free tier a low concurrency and a long interval. Give
+# a subscription provider a higher concurrency; it tolerates parallel
+# calls.
+# ─────────────────────────────────────────────────────────────
+pacing:
+  default:
+    concurrency: 2
+    minimum_interval_seconds: 5
+  example-free-mirror:
+    concurrency: 1
+    minimum_interval_seconds: 10
+  example-subscription-pool:
+    concurrency: 3
+    minimum_interval_seconds: 2
+
+# ─────────────────────────────────────────────────────────────
+# feed
+#
+# Optional. Names the Feed `fetch` downloads. `url` is the Feed's own
+# address. `credential_env` names the environment variable that holds
+# your Feed credential; it never holds the token itself. `fetch` reads
+# the token from that variable at run time. `maximum_age_hours` sets how
+# old the last successful download may be before `doctor` reports the
+# Feed Document as stale.
+#
+# Leave `feed` out of a Policy whose Feed Document is produced some
+# other way; `fetch` is not required.
+# ─────────────────────────────────────────────────────────────
+feed:
+  url: "https://example.invalid/feed.json"
+  credential_env: "EXAMPLE_FEED_TOKEN"
+  maximum_age_hours: 24
+
+# ─────────────────────────────────────────────────────────────
+# schedule
+#
+# `enabled` turns the schedule on or off. `interval_minutes` sets the
+# run interval. `require_proxy` skips a run while the proxy is down.
+# `maximum_staleness_hours` forces a run despite a down proxy once the
+# config has gone this long without one.
+# ─────────────────────────────────────────────────────────────
+schedule:
+  enabled: true
+  interval_minutes: 60
+  require_proxy: true
+  maximum_staleness_hours: 24
+
+# ─────────────────────────────────────────────────────────────
+# safety
+#
+# `maximum_removal_share` refuses a write that would remove more than
+# this share of the current Aliases. `snapshot_count` sets how many
+# prior Generated Config snapshots to keep for rollback.
+# ─────────────────────────────────────────────────────────────
+safety:
+  maximum_removal_share: 0.25
+  snapshot_count: 10
+
+# ─────────────────────────────────────────────────────────────
+# translation_overrides
+#
+# Optional. Overrides the translation for one named Offering, by
+# Offering id (`<provider>:<provider_model_id>`). This is the escape
+# hatch for a single exceptional Offering. A whole provider needing an
+# exception belongs in `providers.<id>.translation` instead — see
+# `example-legacy-provider` above.
+#
+# Each entry's keys replace the translated `litellm_params`, key by
+# key, after any provider-level `translation` override already applied.
+# Leave this key out of a Policy that needs no per-Offering exception;
+# most Policy files do.
+# ─────────────────────────────────────────────────────────────
+translation_overrides:
+  "example-mixed-provider:coder-small":
+    api_base: "os.environ/EXAMPLE_MIXED_PROVIDER_ALTERNATE_BASE_URL"
+
+# ─────────────────────────────────────────────────────────────
+# proxy_settings
+#
+# Optional. The Generated Config is a complete litellm config.yaml: the
+# proxy must load it with no manual merge. `general_settings` and
+# `litellm_settings` here hold every proxy setting the Generator does
+# not derive from the Feed. Each is an arbitrary mapping, written into
+# the Generated Config verbatim. Leave `proxy_settings` out of a Policy
+# that adds no such setting; the Generated Config then still carries
+# only `model_list` (and a derived `litellm_settings`, when one Alias
+# needs the envelope-unwrapping handler — see below).
+#
+# ONE RULE MATTERS: never write `litellm_settings.custom_provider_map`
+# by hand. The Generator always derives it from the Feed's own envelope
+# routing (an Offering that wraps its successful responses routes
+# through a custom handler; the map entry follows from that). A
+# hand-written map would go stale the moment the Feed's routing
+# changes, with no symptom to notice by. Writing it here does not
+# break the run: `plan` reports the conflict and the derived map wins,
+# so the hand-written entry is silently ignored, not merged.
+# ─────────────────────────────────────────────────────────────
+proxy_settings:
+  general_settings:
+    forward_client_headers_to_llm_api: true
+  litellm_settings:
+    master_key: "os.environ/EXAMPLE_PROXY_MASTER_KEY"
+    drop_params: true
+    callbacks:
+      - example_role_fix.example_system_role_fix
+    # Do NOT set custom_provider_map here. It is derived, not declared.

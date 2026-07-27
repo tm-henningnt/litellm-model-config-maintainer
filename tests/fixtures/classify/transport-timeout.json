@@ -1,0 +1,11 @@
+{
+  "provider": "opencode-go",
+  "condition": "timeout",
+  "http_status": null,
+  "body": null,
+  "transport": "timeout",
+  "provenance": "synthesised. A timeout produces no response body, so there is nothing to capture. The spec lists it under 'Seam 1: classify' and buckets it as self_healing.",
+  "expected_outcome": "self_healing",
+  "expected_reset_at": null,
+  "note": "The Offering is Excluded and retried without asking."
+}

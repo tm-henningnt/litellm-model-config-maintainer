@@ -1,0 +1,58 @@
+{
+  "provider": "cline",
+  "condition": "wrapped_success",
+  "http_status": 200,
+  "body": {
+    "data": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "logprobs": null,
+          "message": {
+            "content": "Hello! How can I help you today?",
+            "reasoning": null,
+            "refusal": null,
+            "role": "assistant"
+          },
+          "native_finish_reason": "STOP"
+        }
+      ],
+      "created": 1784998636,
+      "id": "gen-1784998636-3AnoEAu5gWP9ricrKQ1M",
+      "model": "google/gemma-4-31b-it:free",
+      "object": "chat.completion",
+      "provider": "Google AI Studio",
+      "service_tier": "default",
+      "system_fingerprint": null,
+      "usage": {
+        "completion_tokens": 9,
+        "completion_tokens_details": {
+          "audio_tokens": 0,
+          "image_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "cost": 0,
+        "cost_details": {
+          "upstream_inference_completions_cost": 0,
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0
+        },
+        "is_byok": true,
+        "prompt_tokens": 2,
+        "prompt_tokens_details": {
+          "audio_tokens": 0,
+          "cache_write_tokens": 0,
+          "cached_tokens": 0,
+          "video_tokens": 0
+        },
+        "total_tokens": 11
+      }
+    },
+    "success": true
+  },
+  "provenance": "captured live from the provider on 2026-07-25",
+  "expected_outcome": "needs_operator",
+  "expected_reset_at": null,
+  "note": "HTTP 200 whose body carries no top-level `choices`. This is what the Cline envelope does to a plain OpenAI-compatible client: the call succeeded and the client cannot read it. Ticket 02 uses the same fixture to assert the handler unwraps `data` correctly."
+}

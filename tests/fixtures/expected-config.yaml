@@ -1,0 +1,722 @@
+# Frozen fixture. Read this note before you touch this file.
+#
+# This is the Generated Config the operator built and verified by hand
+# on 2026-07-25. It is a copy of ~/.config/litellm/config.yaml, taken
+# before the maintainer tool wrote to that path for the first time.
+#
+# Alias count: 78, computed with:
+#   grep -c "^  - model_name:" tests/fixtures/expected-config.yaml
+#
+# It is the expected value for the acceptance test in ticket 10: `plan`,
+# given the audited Feed snapshot and the operator's Policy, must
+# reproduce this file entry by entry, with exactly two intended
+# differences (see the ticket for what they are).
+#
+# Nothing may overwrite this file. It cannot be regenerated once the
+# live config changes.
+
+model_list:
+
+  # ─────────────────────────────────────────────────────────────
+  # Claude
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-sonnet-5
+    litellm_params:
+      model: anthropic/claude-sonnet-5
+
+  - model_name: claude-opus-5
+    litellm_params:
+      model: anthropic/claude-opus-5
+
+  - model_name: claude-haiku-4-5
+    litellm_params:
+      model: anthropic/claude-haiku-4-5
+
+  - model_name: claude-fable-5
+    litellm_params:
+      model: anthropic/claude-fable-5
+
+  # ─────────────────────────────────────────────────────────────
+  # ChatGPT subscription
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-gpt-5.6-sol
+    model_info:
+      mode: responses
+    litellm_params:
+      model: chatgpt/gpt-5.6-sol
+
+  - model_name: claude-gpt-5.6-terra
+    model_info:
+      mode: responses
+    litellm_params:
+      model: chatgpt/gpt-5.6-terra
+
+  - model_name: claude-gpt-5.6-luna
+    model_info:
+      mode: responses
+    litellm_params:
+      model: chatgpt/gpt-5.6-luna
+
+  - model_name: claude-gpt-5.5
+    model_info:
+      mode: responses
+    litellm_params:
+      model: chatgpt/gpt-5.5
+
+  - model_name: claude-gpt-5.4
+    model_info:
+      mode: responses
+    litellm_params:
+      model: chatgpt/gpt-5.4
+
+  - model_name: claude-gpt-5.4-mini
+    model_info:
+      mode: responses
+    litellm_params:
+      model: chatgpt/gpt-5.4-mini
+
+  # ─────────────────────────────────────────────────────────────
+  # Qwen Token Plan
+  # coding / reasoning / agentic (Artificial Analysis)
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-qwen-token-plan-3.8-max-preview
+    # preferred default — very good quality, currently at promotional pricing
+    litellm_params:
+      model: anthropic/qwen3.8-max-preview
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-3.6-flash
+    litellm_params:
+      model: anthropic/qwen3.6-flash
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-glm-5.2
+    # 68.8 / 51.1 / 43.1 — 1M ctx
+    litellm_params:
+      model: anthropic/glm-5.2
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-qwen3.7-max
+    # 66 / 46 / 30.6 — 1M ctx
+    litellm_params:
+      model: anthropic/qwen3.7-max
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-deepseek-v4-pro
+    # 59.4 / 44.3 / 36.4 — 1M ctx
+    litellm_params:
+      model: anthropic/deepseek-v4-pro
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-kimi-k2.6
+    # 61.8 / 44.2 / 30.3 — 262K ctx
+    litellm_params:
+      model: anthropic/kimi-k2.6
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-kimi-k2.7-code
+    # 60.8 / 41.9 / 29.6 — 262K ctx
+    litellm_params:
+      model: anthropic/kimi-k2.7-code
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-deepseek-v4-flash
+    # 56.2 / 40.3 / 31.1 — 1M ctx
+    litellm_params:
+      model: anthropic/deepseek-v4-flash
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-glm-5.1
+    # 55.8 / 40.2 / 29.9 — 202K ctx
+    litellm_params:
+      model: anthropic/glm-5.1
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-qwen3.6-plus
+    # 54.5 / 39.6 / 27.6 — 1M ctx
+    litellm_params:
+      model: anthropic/qwen3.6-plus
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-glm-5
+    # reasoning 39.5 — 202K ctx
+    litellm_params:
+      model: anthropic/glm-5
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-qwen3.7-plus
+    # 55.9 / 39 / 20.8 — 1M ctx
+    litellm_params:
+      model: anthropic/qwen3.7-plus
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-kimi-k2.5
+    # 46.8 / 35.4 / 21.7 — 262K ctx
+    litellm_params:
+      model: anthropic/kimi-k2.5
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-minimax-m2.5
+    # reasoning 33.7 — 196K ctx
+    litellm_params:
+      model: anthropic/MiniMax-M2.5
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  - model_name: claude-qwen-token-plan-deepseek-v3.2
+    # 44.2 / 32 / 18.3 — 131K ctx
+    litellm_params:
+      model: anthropic/deepseek-v3.2
+      api_base: os.environ/QWEN_TOKEN_PLAN_ANTHROPIC_BASE_URL
+      api_key: os.environ/QWEN_TOKEN_PLAN_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # OpenRouter
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-openrouter-laguna-m.1-free
+    # unrated by Artificial Analysis — reportedly strong, verify results until calibrated
+    litellm_params:
+      model: openrouter/poolside/laguna-m.1:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-laguna-s-2.1-free
+    # unrated by Artificial Analysis — 2.1 line, reportedly strong, verify results until calibrated
+    litellm_params:
+      model: openrouter/poolside/laguna-s-2.1:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-laguna-xs-2.1-free
+    # unrated by Artificial Analysis — 2.1 line, reportedly strong, verify results until calibrated
+    litellm_params:
+      model: openrouter/poolside/laguna-xs-2.1:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-nemotron-3-ultra-free
+    # 49.3 / 37.8 / 27.4 — 1M ctx — best free large-context option
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-gemma-4-31b-it-free
+    # 43.4 / 29.4 / 14.4 — 262K ctx
+    litellm_params:
+      model: openrouter/google/gemma-4-31b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-gemma-4-26b-a4b-it-free
+    # 39.3 / 25.7 / 11 — 262K ctx
+    litellm_params:
+      model: openrouter/google/gemma-4-26b-a4b-it:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-nemotron-3-super-120b-free
+    # 37.7 / 25.4 / 8.7 — 262K ctx
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-super-120b-a12b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-north-mini-code-free
+    # 36.5 / 19.8 / 3.1 — 256K ctx — code-tuned but weak agentic, single-file edits only
+    litellm_params:
+      model: openrouter/cohere/north-mini-code:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-gpt-oss-20b-free
+    # 20.7 / 14.9 / 3.1 — 131K ctx — trivial mechanical tasks only
+    litellm_params:
+      model: openrouter/openai/gpt-oss-20b:free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-openrouter-free-router
+    # auto-routes to whatever is free — unpredictable quality, last resort
+    litellm_params:
+      model: openrouter/free
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # GDM — commented out: billing/terms unclear, re-enable once confirmed
+  # ─────────────────────────────────────────────────────────────
+
+  # - model_name: claude-gdm-gemma4-31b-it
+  #   litellm_params:
+  #     model: openai/gemma4-31b-it
+  #     api_base: https://ai.gdm.se/api/v1
+  #     api_key: os.environ/GDM_API_KEY
+
+  # - model_name: claude-gpt-oss-120b
+  #   litellm_params:
+  #     model: openai/gpt-oss-120b
+  #     api_base: https://ai.gdm.se/api/v1
+  #     api_key: os.environ/GDM_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # Gemini (Google One AI Plus / API key)
+  # coding / reasoning / agentic (Artificial Analysis)
+  #
+  # Note: the two "Pro" models (3.1-pro-preview, 2.5-pro) both fail with
+  # 429 "exceeded your current quota" while every Flash/Gemma/Lite model
+  # here works fine. Likely explanation: Google One AI Plus grants a
+  # consumer-app quota, not full pay-as-you-go API billing — Pro-tier
+  # models may need Cloud billing enabled separately from the AI Plus
+  # subscription. Commented out below; re-enable if that gets sorted out.
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-gemini-3.5-flash
+    # 70.1 / 50.2 / 37.4 — 1M ctx — $3.38/1M blended — top pick
+    litellm_params:
+      model: gemini/gemini-3.5-flash
+      api_key: os.environ/GEMINI_API_KEY
+
+  # - model_name: claude-gemini-3.1-pro-preview
+  #   # 68.8 / 46.5 / 21.4 — 1M ctx — $4.50/1M blended
+  #   # 429 quota exceeded — Pro tier likely needs Cloud billing beyond AI Plus
+  #   litellm_params:
+  #     model: gemini/gemini-3.1-pro-preview
+  #     api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: claude-gemini-3-flash-preview
+    # reasoning 37.8 — 1M ctx — $1.13/1M blended
+    litellm_params:
+      model: gemini/gemini-3-flash-preview
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: claude-gemini-gemma-4-31b-it
+    # 43.4 / 29.4 / 14.4 — 262K ctx
+    litellm_params:
+      model: gemini/gemma-4-31b-it
+      api_key: os.environ/GEMINI_API_KEY
+
+  # - model_name: claude-gemini-2.5-pro
+  #   # 33.3 / 25.8 / 7.1 — 1M ctx — $3.44/1M blended
+  #   # 429 quota exceeded — Pro tier likely needs Cloud billing beyond AI Plus
+  #   litellm_params:
+  #     model: gemini/gemini-2.5-pro
+  #     api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: claude-gemini-gemma-4-26b-a4b-it
+    # 39.3 / 25.7 / 11 — 262K ctx
+    litellm_params:
+      model: gemini/gemma-4-26b-a4b-it
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: claude-gemini-3.1-flash-lite
+    # 34.7 / 25 — 1M ctx — $0.56/1M blended
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GEMINI_API_KEY
+
+  - model_name: claude-gemini-3.1-flash-lite-preview
+    # 34.7 / 25 / 6.2 — 1M ctx — $0.56/1M blended
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite-preview
+      api_key: os.environ/GEMINI_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # Groq (free tier, no paid subscription)
+  # coding / reasoning / agentic (Artificial Analysis)
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-groq-qwen3.6-27b
+    # 53.7 / 37.1 / 27 — 131K ctx — best free Groq coder
+    litellm_params:
+      model: groq/qwen/qwen3.6-27b
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: claude-groq-gpt-oss-120b
+    # 30.4 / 23.8 / 13.2 — 131K ctx
+    litellm_params:
+      model: groq/openai/gpt-oss-120b
+      api_key: os.environ/GROQ_API_KEY
+
+  - model_name: claude-groq-gpt-oss-20b
+    # 20.7 / 14.9 / 3.1 — 131K ctx — trivial mechanical only
+    litellm_params:
+      model: groq/openai/gpt-oss-20b
+      api_key: os.environ/GROQ_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # ClinePass — commented out: subscription ending, renewal unconfirmed.
+  # (custom "cline" provider — see cline_provider.py. Cline wraps successful
+  # responses in {"data":..., "success":true}, which litellm's plain openai/
+  # client can't parse — custom handler unwraps it. Re-enable if renewed.)
+  # coding / reasoning / agentic (Artificial Analysis, 2026-07-22)
+  # ─────────────────────────────────────────────────────────────
+
+  # - model_name: claude-cline-pass-kimi-k3
+  #   # 76.2 / 57.1 / 50.1 — 1M ctx — $6.00/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/kimi-k3
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-glm-5.2
+  #   # 68.8 / 51.1 / 43.1 — 1M ctx — $1.18/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/glm-5.2
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-qwen3.7-max
+  #   # 66 / 46 / 30.6 — 1M ctx — $2.21/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/qwen3.7-max
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-minimax-m3
+  #   # 58.6 / 44.4 / 35.4 — 1M ctx — $0.52/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/minimax-m3
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-deepseek-v4-pro
+  #   # 59.4 / 44.3 / 36.4 — 1M ctx — $0.54/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/deepseek-v4-pro
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-kimi-k2.6
+  #   # 61.8 / 44.2 / 30.3 — 262K ctx — $1.16/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/kimi-k2.6
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-mimo-v2.5-pro
+  #   # 60.2 / 42.2 / 29.1 — 1M ctx — $0.54/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/mimo-v2.5-pro
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-kimi-k2.7-code
+  #   # 60.8 / 41.9 / 29.6 — 262K ctx — $1.46/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/kimi-k2.7-code
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-deepseek-v4-flash
+  #   # 56.2 / 40.3 / 31.1 — 1M ctx — $0.12/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/deepseek-v4-flash
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-qwen3.7-plus
+  #   # 55.9 / 39 / 20.8 — 1M ctx — $0.56/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/qwen3.7-plus
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # - model_name: claude-cline-pass-mimo-v2.5
+  #   # 56.8 / 37.2 / 23.7 — 1M ctx — $0.18/1M blended
+  #   litellm_params:
+  #     model: cline/cline-pass/mimo-v2.5
+  #     api_base: https://api.cline.bot/api/v1
+  #     api_key: os.environ/CLINE_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # Cline free tier (openrouter-hosted models via api.cline.bot, custom "cline" provider)
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-cline-free-nemotron-3-ultra
+    # 49.3 / 37.8 / 27.4 — 1M ctx — best free Cline coder + large-context jobs
+    litellm_params:
+      model: cline/nvidia/nemotron-3-ultra-550b-a55b:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-gemma-4-31b-it
+    # 43.4 / 29.4 / 14.4 — 262K ctx — mid fallback; structured output + vision
+    litellm_params:
+      model: cline/google/gemma-4-31b-it:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-gemma-4-26b-a4b-it
+    # 39.3 / 25.7 / 11 — 262K ctx
+    litellm_params:
+      model: cline/google/gemma-4-26b-a4b-it:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-nemotron-3-super-120b
+    # 37.7 / 25.4 / 8.7 — 262K ctx — light tasks when the above are saturated
+    litellm_params:
+      model: cline/nvidia/nemotron-3-super-120b-a12b:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-north-mini-code
+    # 36.5 / 19.8 / 3.1 — 256K ctx — code-tuned but weak agentic, single-file edits only
+    litellm_params:
+      model: cline/cohere/north-mini-code:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-gpt-oss-20b
+    # 20.7 / 14.9 / 3.1 — 131K ctx — trivial mechanical only
+    litellm_params:
+      model: cline/openai/gpt-oss-20b:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-laguna-m.1
+    # unrated by Artificial Analysis — reportedly strong, verify results until calibrated
+    litellm_params:
+      model: cline/poolside/laguna-m.1:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-laguna-s-2.1
+    # unrated by Artificial Analysis — 2.1 line, reportedly strong, verify results until calibrated
+    litellm_params:
+      model: cline/poolside/laguna-s-2.1:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  - model_name: claude-cline-free-laguna-xs-2.1
+    # unrated by Artificial Analysis — 2.1 line, reportedly strong, verify results until calibrated
+    litellm_params:
+      model: cline/poolside/laguna-xs-2.1:free
+      api_base: https://api.cline.bot/api/v1
+      api_key: os.environ/CLINE_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # OpenCode Go — openai-compatible endpoint
+  # (https://opencode.ai/zen/go/v1/chat/completions)
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-opencode-go-grok-4.5
+    # 500K ctx — $3.00/1M blended
+    litellm_params:
+      model: openai/grok-4.5
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-glm-5.2
+    # 68.8 / 51.1 / 43.1 — 1M ctx — $2.15/1M blended
+    litellm_params:
+      model: openai/glm-5.2
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-glm-5.1
+    # 55.8 / 40.2 / 29.9 — 202K ctx — $2.15/1M blended
+    litellm_params:
+      model: openai/glm-5.1
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-glm-5
+    # reasoning 39.5 — 202K ctx — $1.55/1M blended
+    litellm_params:
+      model: openai/glm-5
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-kimi-k3
+    # 1M ctx — $6.00/1M blended
+    litellm_params:
+      model: openai/kimi-k3
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-kimi-k2.7-code
+    # 60.8 / 41.9 / 29.6 — 262K ctx — $1.71/1M blended
+    litellm_params:
+      model: openai/kimi-k2.7-code
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-kimi-k2.6
+    # 61.8 / 44.2 / 30.3 — 262K ctx — $1.71/1M blended
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-kimi-k2.5
+    # 46.8 / 35.4 / 21.7 — 262K ctx — $1.20/1M blended
+    litellm_params:
+      model: openai/kimi-k2.5
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-deepseek-v4-pro
+    # 59.4 / 44.3 / 36.4 — 1M ctx — $0.54/1M blended
+    litellm_params:
+      model: openai/deepseek-v4-pro
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-deepseek-v4-flash
+    # 56.2 / 40.3 / 31.1 — 1M ctx — $0.18/1M blended
+    litellm_params:
+      model: openai/deepseek-v4-flash
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-mimo-v2.5
+    # 56.8 / 37.2 / 23.7 — 1M ctx — $0.18/1M blended
+    litellm_params:
+      model: openai/mimo-v2.5
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-mimo-v2.5-pro
+    # 60.2 / 42.2 / 29.1 — 1M ctx — $0.54/1M blended
+    litellm_params:
+      model: openai/mimo-v2.5-pro
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  # - model_name: claude-opencode-go-mimo-v2-omni
+  #   # 262K ctx — $0.80/1M blended
+  #   # consistent 502 Cloudflare errors across multiple test runs — looks genuinely down
+  #   litellm_params:
+  #     model: openai/mimo-v2-omni
+  #     api_base: https://opencode.ai/zen/go/v1
+  #     api_key: os.environ/OPENCODE_API_KEY
+
+  # - model_name: claude-opencode-go-mimo-v2-pro
+  #   # 1M ctx — $1.50/1M blended
+  #   # consistent 502 Cloudflare errors across multiple test runs — looks genuinely down
+  #   litellm_params:
+  #     model: openai/mimo-v2-pro
+  #     api_base: https://opencode.ai/zen/go/v1
+  #     api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-hy3
+    # 256K ctx — $0.25/1M blended
+    litellm_params:
+      model: openai/hy3
+      api_base: https://opencode.ai/zen/go/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # OpenCode Go — anthropic-compatible endpoint
+  # (https://opencode.ai/zen/go/v1/messages)
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-opencode-go-minimax-m3
+    # 58.6 / 44.4 / 35.4 — 1M ctx — $0.52/1M blended
+    litellm_params:
+      model: anthropic/minimax-m3
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-minimax-m2.7
+    # 52.6 / 38.1 / 25.6 — 204K ctx — $0.52/1M blended
+    litellm_params:
+      model: anthropic/minimax-m2.7
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-minimax-m2.5
+    # reasoning 33.7 — 204K ctx — $0.52/1M blended
+    litellm_params:
+      model: anthropic/minimax-m2.5
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-qwen3.7-max
+    # 66 / 46 / 30.6 — 1M ctx — $3.75/1M blended
+    litellm_params:
+      model: anthropic/qwen3.7-max
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-qwen3.7-plus
+    # 55.9 / 39 / 20.8 — 1M ctx — $0.70/1M blended
+    litellm_params:
+      model: anthropic/qwen3.7-plus
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-qwen3.6-plus
+    # 54.5 / 39.6 / 27.6 — 1M ctx — $1.13/1M blended
+    litellm_params:
+      model: anthropic/qwen3.6-plus
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-go-qwen3.5-plus
+    # 262K ctx — $0.45/1M blended
+    litellm_params:
+      model: anthropic/qwen3.5-plus
+      api_base: https://opencode.ai/zen/go/v1/messages
+      api_key: os.environ/OPENCODE_API_KEY
+
+  # ─────────────────────────────────────────────────────────────
+  # OpenCode Zen (free tier: https://opencode.ai/zen/v1/chat/completions)
+  # ─────────────────────────────────────────────────────────────
+
+  - model_name: claude-opencode-zen-deepseek-v4-flash-free
+    # 56.2 / 40.3 / 31.1 — 200K ctx — best free coder anywhere right now
+    litellm_params:
+      model: openai/deepseek-v4-flash-free
+      api_base: https://opencode.ai/zen/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-zen-mimo-v2.5-free
+    # 56.8 / 37.2 / 23.7 — 200K ctx — edges flash on raw coding, weaker agentic
+    litellm_params:
+      model: openai/mimo-v2.5-free
+      api_base: https://opencode.ai/zen/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-zen-nemotron-3-ultra-free
+    # 49.3 / 37.8 / 27.4 — 1M ctx — large-context jobs
+    litellm_params:
+      model: openai/nemotron-3-ultra-free
+      api_base: https://opencode.ai/zen/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-zen-north-mini-code-free
+    # 36.5 / 19.8 / 3.1 — 256K ctx — code-tuned but weak agentic, single-file edits only
+    litellm_params:
+      model: openai/north-mini-code-free
+      api_base: https://opencode.ai/zen/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+  - model_name: claude-opencode-zen-laguna-s-2.1-free
+    # unrated by Artificial Analysis — reportedly strong, verify results until calibrated
+    litellm_params:
+      model: openai/laguna-s-2.1-free
+      api_base: https://opencode.ai/zen/v1
+      api_key: os.environ/OPENCODE_API_KEY
+
+
+general_settings:
+  forward_client_headers_to_llm_api: true
+
+litellm_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  drop_params: true
+  callbacks:
+    - chatgpt_role_fix.chatgpt_system_role_fix
+  custom_provider_map:
+    - provider: cline
+      custom_handler: cline_provider.cline_llm

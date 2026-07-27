@@ -1,0 +1,17 @@
+{
+  "provider": "qwencloud-token-plan",
+  "condition": "quota_exceeded_openai_shape",
+  "http_status": 429,
+  "body": {
+    "error": {
+      "message": "Your token-plan 1-week quota has been exhausted. The quota will reset at 07-29 21:45:00 UTC.",
+      "id": "f0e26d88-d5e8-4a09-a87b-cb99348113cd",
+      "type": "insufficient_quota",
+      "code": "insufficient_quota"
+    }
+  },
+  "provenance": "captured live from the provider on 2026-07-25",
+  "expected_outcome": "self_healing",
+  "expected_reset_at": "2026-07-29T21:45:00Z",
+  "note": "The reset time is in prose and states no year. classify resolves the year from the `now` parameter. Pairs with qwen-quota-anthropic: same plan, same reset time, different JSON."
+}

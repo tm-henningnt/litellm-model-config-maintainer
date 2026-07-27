@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "litellm_maintainer"
+version = "0.1.0"
+description = "Keeps a litellm proxy config current from a model discovery Feed and an operator Policy."
+requires-python = ">=3.13"
+# The maintainer reads JSON and YAML and writes files. It never calls a
+# model and never imports litellm: no module under `litellm_maintainer/`
+# does. Keep litellm out of here, or every install of a config generator
+# pulls litellm's 82 requirements with it.
+dependencies = [
+    "pyyaml",
+    "httpx",
+]
+
+[project.scripts]
+litellm-maintainer = "litellm_maintainer.cli:main"
+
+[project.optional-dependencies]
+# litellm is a test dependency. The three modules under `providers/` run
+# inside the proxy, which supplies its own litellm; `deploy` copies them
+# as bytes and never imports them. Their tests do import them, so the
+# test run needs litellm and the tool itself does not.
+dev = [
+    "pytest",
+    "litellm",
+]
+
+[tool.setuptools.packages.find]
+include = ["litellm_maintainer*", "providers*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

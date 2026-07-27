@@ -1,0 +1,55 @@
+# Issue tracker: Local Markdown
+
+Issues and specs (you may know a spec as a PRD) for this repo live as
+markdown files in `.scratch/`.
+
+## Warning: this repository is public
+
+`.scratch/` is in `.gitignore`. Keep it there.
+
+Issue text for this project names private hosts, plan quotas, alias
+names, and subscription state. Such content must not reach the published
+repository. Never run `git add -f` on a file under `.scratch/`.
+
+## Conventions
+
+- One feature per directory: `.scratch/<feature-slug>/`
+- The spec is `.scratch/<feature-slug>/spec.md`
+- Implementation issues are one file per ticket at
+  `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` —
+  never a single combined tickets file
+- Triage state is a `Status:` line near the top of each issue file. See
+  `triage-labels.md` for the role strings.
+- Comments and conversation history append to the bottom of the file
+  under a `## Comments` heading
+
+## When a skill says "publish to the issue tracker"
+
+Create a new file under `.scratch/<feature-slug>/`. Create the directory
+first if it does not exist.
+
+## When a skill says "fetch the relevant ticket"
+
+Read the file at the referenced path. The user normally gives the path or
+the issue number directly.
+
+## Wayfinding operations
+
+Used by `/wayfinder`. The **map** is a file with one **child** file per
+ticket.
+
+- **Map**: `.scratch/<effort>/map.md` — the Notes, Decisions-so-far and
+  Fog body.
+- **Child ticket**: `.scratch/<effort>/issues/NN-<slug>.md`, numbered
+  from `01`, with the question in the body. A `Type:` line records the
+  ticket type (`research`, `prototype`, `grilling` or `task`). A
+  `Status:` line records `claimed` or `resolved`.
+- **Blocking**: a `Blocked by: NN, NN` line near the top. A ticket is
+  unblocked when every file it lists is `resolved`.
+- **Frontier**: scan `.scratch/<effort>/issues/` for files that are open,
+  unblocked and unclaimed. The first by number wins.
+- **Claim**: set `Status: claimed` and save the file before you start
+  work.
+- **Resolve**: append the answer under an `## Answer` heading. Set
+  `Status: resolved`. Then append a context pointer (gist and link) to
+  the Decisions-so-far section in `map.md`.

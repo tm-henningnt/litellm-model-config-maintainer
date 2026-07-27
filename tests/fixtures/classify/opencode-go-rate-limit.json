@@ -1,0 +1,15 @@
+{
+  "provider": "opencode-go",
+  "condition": "rate_limit_no_reset_time",
+  "http_status": 429,
+  "body": {
+    "error": {
+      "message": "Worker local total request limit reached (180/32)",
+      "type": "rate_limit_error"
+    }
+  },
+  "provenance": "reconstructed. Message quoted verbatim from docs/gotchas.md, section 'Probe concurrency creates false failures'. The envelope follows the provider's own error shape, seen in opencode-go-plan.json. Not captured on purpose: producing it needs a deliberate limiter trip, which the spec forbids.",
+  "expected_outcome": "inconclusive",
+  "expected_reset_at": null,
+  "note": "Our own probing caused this failure, so the attempt measured nothing. It must never change Health State. This is the rule that stops the Prober evicting a healthy Offering."
+}

@@ -1,0 +1,29 @@
+# Secrets and instance credentials
+.env
+.env.local
+
+# Instance data. It must never reach this repository.
+# The real files live in $LITELLM_MAINTAINER_HOME
+# (default ~/.config/litellm-maintainer).
+policy.yaml
+state/
+snapshots/
+notes.md
+feedback.md
+
+# Issues and specs. See docs/agents/issue-tracker.md.
+# Issue text names private hosts, quotas and subscription state.
+.scratch/
+
+# Caches
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.claude/
+.pytest_cache/
+.ruff_cache/
