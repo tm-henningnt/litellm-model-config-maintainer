@@ -53,3 +53,24 @@ def test_a_short_value_is_not_mapped(tmp_path):
     env_path = write_env(tmp_path, ["SHORT_KEY=abc123"])
     mapping = redact_mod.build_redaction_map(env_path)
     assert mapping == {}
+
+
+def test_a_quoted_value_loses_its_quotes(tmp_path):
+    """A dotenv file may quote a value. Quotes that survive defeat both callers.
+
+    The bare credential would appear unredacted, because the map holds the
+    quoted form. The same value sent as a bearer token would carry the
+    quotes and the provider would answer 401.
+    """
+    env_path = write_env(tmp_path, ['QUOTED_KEY="secret-value-1234567890"'])
+
+    assert redact_mod.parse_dotenv_file(env_path) == {
+        "QUOTED_KEY": "secret-value-1234567890"
+    }
+
+    result = redact_mod.redact(
+        "auth failed for secret-value-1234567890",
+        redact_mod.build_redaction_map(env_path),
+    )
+    assert "secret-value-1234567890" not in result
+    assert "<REDACTED:QUOTED_KEY>" in result

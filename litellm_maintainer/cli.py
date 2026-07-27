@@ -972,7 +972,10 @@ def cmd_fetch(args: argparse.Namespace, *, transport=None) -> int:
         destination=destination,
         transport=transport or http_transport(),
         providers_configured=providers_configured,
-        token=resolve_credential(source),
+        # Read the `--env` file too, not just `os.environ`. The operator's
+        # shell does not export every variable the file defines, and the
+        # scheduled tick has no shell at all. See `_fetch_for_tick`.
+        token=resolve_credential(source, _credential_environment(env_path)),
     )
 
     stream = sys.stdout if outcome.promoted else sys.stderr
@@ -1688,22 +1691,48 @@ def _live_proxy_check(base_url: str, *, timeout: float = 5.0) -> bool:
 
 
 def _fetch_for_tick(
-    args: argparse.Namespace, *, policy, mapping: dict[str, str], transport=None
+    args: argparse.Namespace,
+    *,
+    policy,
+    mapping: dict[str, str],
+    env_path: Path | None = None,
+    transport=None,
 ) -> str | None:
     """Refresh the Feed Document for an unattended tick. Never fatal.
 
-    Returns a note for the run log when the fetch failed, or `None` when
-    it succeeded or when there was nothing to do. A Policy with no `feed`
-    block, or a dry run, fetches nothing and the tick behaves exactly as
-    it did before this step existed.
+    Returns a note for the run log when the fetch failed or when Policy
+    named no Feed to fetch, and `None` when a new document was promoted.
+    A dry run fetches nothing and returns `None`.
 
     The download goes to the same path the tick then reads (`--feed`), so
     the run plans from the document it just refreshed.
+
+    Warning: a Policy with no `feed` block leaves the tick planning on
+    whatever document is on disk, forever. That is a supported mode — the
+    operator refreshes the Feed themselves — but it is indistinguishable
+    from a broken loop unless the tick says so. Measured 2026-07-27: a
+    Policy carried no `feed` block for a full day of hourly ticks, every
+    tick planned on one hand-fetched document, and no line in `runs.log`
+    or `tick.out.log` named the reason. Hence the note.
+
+    `env_path` is the `--env` file. The credential comes from that file
+    MERGED with the process environment (`_credential_environment`), not
+    from the process environment alone. launchd starts the tick with no
+    shell profile, so a token the operator keeps in `.env.local` is not
+    exported and `os.environ` alone resolves nothing. A Feed behind a
+    bearer token then answers 401 on every tick, the fetch keeps the
+    previous document, and the loop looks like it never fetches.
     """
     if getattr(args, "dry_run", False):
         return None
     if policy.feed is None:
-        return None
+        message = (
+            "Policy names no 'feed' block, so this tick fetched nothing and "
+            "planned on the Feed Document already on disk. Add feed.url to "
+            "Policy to let the tick refresh it."
+        )
+        print(redact(message, mapping), file=sys.stderr)
+        return "feed_not_configured: Policy names no 'feed' block"
 
     from litellm_maintainer.fetch import (
         fetch_feed_document,
@@ -1716,7 +1745,7 @@ def _fetch_for_tick(
         destination=Path(args.feed),
         transport=transport or http_transport(),
         providers_configured=bool(policy.providers),
-        token=resolve_credential(policy.feed),
+        token=resolve_credential(policy.feed, _credential_environment(env_path)),
     )
     if outcome.promoted:
         print(redact(f"Fetched the Feed: {outcome.message}", mapping))
@@ -1890,7 +1919,11 @@ def cmd_run(
         fetch_note = None
     else:
         fetch_note = _fetch_for_tick(
-            args, policy=policy, mapping=mapping, transport=fetch_transport
+            args,
+            policy=policy,
+            mapping=mapping,
+            env_path=env_path,
+            transport=fetch_transport,
         )
 
     try:

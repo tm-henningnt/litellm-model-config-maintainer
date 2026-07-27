@@ -73,7 +73,14 @@ def _fixtures(tmp_path: Path, *, feed_block: dict | None) -> tuple[Path, Path]:
     return policy_path, feed_path
 
 
-def _args(policy_path: Path, feed_path: Path, tmp_path: Path, *, dry_run: bool = False):
+def _args(
+    policy_path: Path,
+    feed_path: Path,
+    tmp_path: Path,
+    *,
+    dry_run: bool = False,
+    env_path: Path | None = None,
+):
     argv = [
         "run",
         "--policy",
@@ -85,6 +92,8 @@ def _args(policy_path: Path, feed_path: Path, tmp_path: Path, *, dry_run: bool =
         "--out",
         str(tmp_path / "config.yaml"),
     ]
+    if env_path is not None:
+        argv += ["--env", str(env_path)]
     if dry_run:
         argv.append("--dry-run")
     return build_parser().parse_args(argv)
@@ -92,12 +101,15 @@ def _args(policy_path: Path, feed_path: Path, tmp_path: Path, *, dry_run: bool =
 
 def _transport(body: str):
     calls: list[str] = []
+    tokens: list[str | None] = []
 
     def transport(url: str, token: str | None) -> str:
         calls.append(url)
+        tokens.append(token)
         return body
 
     transport.calls = calls  # type: ignore[attr-defined]
+    transport.tokens = tokens  # type: ignore[attr-defined]
     return transport
 
 
@@ -214,6 +226,45 @@ def test_a_policy_with_no_feed_block_fetches_nothing(tmp_path):
     policy_path, feed_path = _fixtures(tmp_path, feed_block=None)
 
     assert _run(_args(policy_path, feed_path, tmp_path), fetch_transport=_boom) == 0
+
+
+def test_a_policy_with_no_feed_block_says_so_in_the_run_log(tmp_path):
+    """A tick that cannot refresh the Feed must not look like one that did.
+
+    Measured 2026-07-27: a Policy carried no `feed` block for a day of
+    hourly ticks. Every tick planned on one hand-fetched document and no
+    log line named the reason, so the loop read as healthy.
+    """
+    policy_path, feed_path = _fixtures(tmp_path, feed_block=None)
+
+    _run(_args(policy_path, feed_path, tmp_path), fetch_transport=_boom)
+
+    log = (tmp_path / "state" / "runs.log").read_text()
+    assert "feed_not_configured" in log
+
+
+def test_the_tick_reads_the_feed_credential_from_the_env_file(tmp_path, monkeypatch):
+    """launchd exports nothing, so `os.environ` alone resolves no token.
+
+    The tick is given `--env`. Without reading that file the fetch sends
+    no Authorization header, a Feed behind a bearer token answers 401 on
+    every tick, and the loop keeps the previous document forever.
+    """
+    monkeypatch.delenv("FEED_TOKEN", raising=False)
+    env_path = tmp_path / ".env.local"
+    env_path.write_text('FEED_TOKEN="token-from-the-file"\n')
+    policy_path, feed_path = _fixtures(
+        tmp_path,
+        feed_block={"url": "https://feed.example/feed.json", "credential_env": "FEED_TOKEN"},
+    )
+    transport = _transport(_feed_document())
+
+    _run(
+        _args(policy_path, feed_path, tmp_path, env_path=env_path),
+        fetch_transport=transport,
+    )
+
+    assert transport.tokens == ["token-from-the-file"]
 
 
 def test_a_dry_run_fetches_nothing(tmp_path):

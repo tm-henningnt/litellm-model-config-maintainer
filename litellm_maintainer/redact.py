@@ -25,6 +25,13 @@ def parse_dotenv_file(env_path: Path) -> dict[str, str]:
     Strip whitespace from both `NAME` and `value`. Shared by
     `build_redaction_map` and `litellm_maintainer.cli._credential_resolver`,
     the two places this project reads `.env.local`.
+
+    Warning: one matching pair of surrounding quotes is removed from the
+    value. A dotenv file may quote a value, and both callers break if the
+    quotes survive. `build_redaction_map` would map `"secret"` rather than
+    `secret`, so the bare credential in a message goes unredacted. A
+    credential sent as a bearer token would carry the quotes and the
+    provider would answer 401.
     """
     values: dict[str, str] = {}
     with open(env_path) as f:
@@ -33,8 +40,16 @@ def parse_dotenv_file(env_path: Path) -> dict[str, str]:
             if not line or line.startswith("#") or "=" not in line:
                 continue
             name, value = line.split("=", 1)
-            values[name.strip()] = value.strip()
+            values[name.strip()] = _unquote(value.strip())
     return values
+
+
+def _unquote(value: str) -> str:
+    """Remove one matching pair of surrounding quotes from `value`."""
+    for quote in ('"', "'"):
+        if len(value) >= 2 and value.startswith(quote) and value.endswith(quote):
+            return value[1:-1]
+    return value
 
 
 def build_redaction_map(env_path: Path | None = None) -> dict[str, str]:
