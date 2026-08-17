@@ -1,0 +1,979 @@
+# Example Policy for litellm-model-config-maintainer.
+#
+# Policy is the operator's hand-written declaration of which Offerings
+# the tool may use, under which Aliases, and which Offerings are
+# withheld and why. Write it once, by hand. Edit it by hand later.
+# Nothing in this project writes to Policy at run time.
+#
+# This file carries every supported field. Copy it, then replace each
+# fictional id and value with your own. No value here is real: the
+# provider ids, model ids and Aliases below do not exist.
+#
+# Validate a Policy with:
+#   python -m litellm_maintainer.cli validate --policy policy.yaml
+
+# ─────────────────────────────────────────────────────────────
+# providers
+#
+# One entry per provider. Each entry states a selection `mode`:
+#
+#   all:   take every Offering the provider publishes, after the
+#          baseline filter (tool use required; image, audio, video,
+#          embedding and safety Offerings excluded).
+#   named: take only the Offerings listed under `models`.
+#
+# `models`, when present, holds Offering ids in the form
+# `<provider>:<provider_model_id>`. It is required when mode is
+# `named`.
+#
+# `pricing`, when present, admits only the listed pricing kinds (one or
+# more of free, free_tier, paid, unknown, subscription_included).
+#
+# WARNING: never set `pricing` for a provider whose free tier is an
+# account entitlement. An unpriced Offering carries the pricing kind
+# `unknown`, which means the Feed publishes no price. It does not mean
+# paid. A provider can be free to your account for a reason the Feed
+# cannot observe — a subscription, a grandfathered plan, a company
+# account. Setting a pricing filter there admits nothing, because the
+# Feed never marks such an Offering `free`. Express an account-level
+# free tier by omitting the pricing filter for that provider, never by
+# expecting the Feed to state it.
+#
+# `translation`, when present, overrides the built-in translation rule
+# for every Offering of this provider. Use it only for a provider whose
+# calling convention needs an exception; leave it unset otherwise.
+#
+# `entitlement`, when present, states whether this provider bills every
+# Offering from one shared pool (`shared_pool`) or bills each Offering
+# against its own limit (`per_model`). `per_model` is the default,
+# because it never over-claims. Setting it changes only how
+# `entitlements` and `guidance` report this provider. It never excludes
+# an Offering and never marks a sibling Offering unusable: a shared pool
+# can run dry on its paid Offerings while its free Offerings keep
+# answering, and forward inference would evict the free ones on a guess.
+# See ADR 0004.
+# ─────────────────────────────────────────────────────────────
+providers:
+  # A curated subscription pool: take every model it offers.
+  example-subscription-pool:
+    mode: all
+
+  # A large free-tier mirror: take only the free Offerings.
+  example-free-mirror:
+    mode: all
+    pricing: [free, free_tier]
+
+  # A provider whose free tier is an account entitlement. The Feed
+  # marks its Offerings paid or unknown, never free, because it cannot
+  # see your billing arrangement. No pricing filter here — see the
+  # warning above. It bills every Offering from one shared pool, so
+  # report it that way.
+  example-account-entitlement-provider:
+    mode: all
+    entitlement: shared_pool
+
+  # A mixed provider: name the specific models you want, ignore price.
+  example-mixed-provider:
+    mode: named
+    models:
+      - "example-mixed-provider:coder-large"
+      - "example-mixed-provider:coder-small"
+
+  # A provider that is free to THIS account, where the Feed cannot see the
+  # plan and therefore prices it.
+  #
+  # `cost_basis` states what the provider costs this account, overriding what
+  # the Feed's pricing kind implies. Two measured cases on 2026-07-28: one
+  # provider is free to the account and the Feed marks its Offerings `paid`
+  # or `unknown`; another is covered by a consumer subscription and the Feed
+  # prices it per token. Both read as spend, so a caller told to treat
+  # `metered` and `unknown` as money avoided capacity already paid for.
+  #
+  # Set it ONLY where the Feed cannot see the account's plan. It changes what
+  # `guidance` and `entitlements` report and nothing else: it never filters
+  # an Offering, never reaches the Generated Config, and never overrides the
+  # Feed's token RATES. A rate is a number the Feed measured; this is a
+  # statement about who bills. See ADR 0012.
+  #
+  # WARNING: do not reach for a `pricing` filter here instead. A provider
+  # whose free tier is an account entitlement publishes no `free` Offerings,
+  # so a pricing filter admits nothing at all.
+  example-account-free-provider:
+    mode: all
+    cost_basis: "free"
+
+  # A provider needing a translation override for one exceptional case.
+  example-legacy-provider:
+    mode: named
+    models:
+      - "example-legacy-provider:legacy-model-1"
+    translation:
+      strip_model_prefix: true
+
+  # A provider selling one roster per subscription edition. The Feed
+  # lists each Offering's editions at
+  # `pricing.subscription.plan_editions`; `plan_edition` names the one
+  # the operator holds, and only an Offering on that roster is admitted.
+  # Selection and the Prober both apply it, so a model the edition
+  # excludes is never written to the config and never probed.
+  #
+  # Ask the operator which edition they hold. It can never be inferred
+  # from the provider id: the Feed publishes ONE provider holding every
+  # edition's models, so filtering by provider alone hands a
+  # narrower-edition subscriber models that answer HTTP 403.
+  #
+  # Warning: an Offering no plan covers publishes no `plan_editions`, so
+  # this filter excludes it. Never set `plan_edition` for a provider
+  # whose catalogue mixes subscription and pay-as-you-go Offerings, or
+  # the pay-as-you-go ones disappear.
+  #
+  # Prefer this to a Withheld list. A hand-written list of the models
+  # your edition lacks goes stale the moment the provider moves one
+  # between editions, and the only symptom is a 403.
+  example-tiered-subscription-provider:
+    mode: all
+    plan_edition: "personal"
+
+  # A provider that wraps a successful response, where the Feed does not
+  # say so. `response_envelope_key` names the wrapper key. The Generator
+  # then routes every Offering of this provider through the
+  # envelope-unwrapping handler, and emits the matching
+  # `custom_provider_map` entry.
+  #
+  # The Feed's own `endpoint.protocol_options.response_envelope_key`
+  # always wins. Set this only for what the Feed omits, and only after a
+  # call measured the wrapper: read the raw body and look for the real
+  # payload under one key, with no top-level `choices`.
+  #
+  # Warning: leave it unset and every SUCCESS on the provider fails with
+  # "provider returned a response with no 'choices'". Errors still look
+  # normal, so the fault hides until a call succeeds.
+  example-wrapping-provider:
+    mode: all
+    response_envelope_key: "data"
+
+# ─────────────────────────────────────────────────────────────
+# quality
+#
+# The quality gate. An Offering scoring at or above
+# `minimum_coding_score` is admitted. An Offering with no score is a
+# Candidate: reported, never added, never dropped, until you admit it
+# through `approved_candidates` below.
+# ─────────────────────────────────────────────────────────────
+quality:
+  minimum_coding_score: 20
+
+# ─────────────────────────────────────────────────────────────
+# approved_candidates
+#
+# Offering ids you admit despite a missing quality score. Approving a
+# Candidate is one line: add its id here.
+# ─────────────────────────────────────────────────────────────
+approved_candidates:
+  - "example-free-mirror:vendor/new-model:free"
+
+# ─────────────────────────────────────────────────────────────
+# naming
+#
+# `provider_labels` maps a provider id to the label used in an Alias.
+# One entry here fixes the name of every Offering from that provider.
+#
+# The mechanical rule, applied to every Offering with no override.
+# Warning: apply the steps in this order. Lowercase the model
+# identifier. Keep only the part after the last `/`, which drops a
+# vendor path segment such as `google/`. Replace each `:` with `-`, so
+# a variant marker such as `:free` becomes an ordinary token. Split on
+# `-`, then drop a leading or a trailing token the provider label
+# already contains, but never a token in the middle. The Alias is
+# `alias_prefix` + the label + `-` + the surviving tokens joined by
+# `-`. The last step stops a repeat: the label `mixed` plus the model
+# `mixed-coder-large` gives `claude-mixed-coder-large`, and the label
+# `free-mirror` plus `vendor/coder-9b:free` gives
+# `claude-free-mirror-coder-9b`.
+#
+# `alias_overrides` maps a single Offering id to an exact Alias,
+# overriding the mechanical derivation for that one Offering. Use it
+# where an upstream identifier would otherwise force an ugly name, or
+# where you must preserve a name a client already depends on.
+#
+# `alias_prefix` is prepended to every derived Alias.
+# ─────────────────────────────────────────────────────────────
+naming:
+  alias_prefix: "claude-"
+  provider_labels:
+    example-subscription-pool: "sub-pool"
+    example-free-mirror: "free-mirror"
+    example-account-entitlement-provider: "acct-provider"
+    example-mixed-provider: "mixed"
+    example-legacy-provider: "legacy"
+  alias_overrides:
+    "example-mixed-provider:coder-large": "claude-mixed-coder-xl"
+
+# ─────────────────────────────────────────────────────────────
+# withheld
+#
+# Offering id to reason. The Prober never probes a Withheld Offering.
+# Only a human clears one, by removing its entry here.
+# ─────────────────────────────────────────────────────────────
+withheld:
+  "example-mixed-provider:coder-experimental": "billing terms unclear, clear this entry once confirmed"
+
+# ─────────────────────────────────────────────────────────────
+# declared
+#
+# An Offering the Feed does not publish. Passed through to Generated
+# Config verbatim, so a Feed change can never rewrite it. Each entry
+# states an `alias` and the `litellm_params` to write verbatim.
+#
+# Set `passthrough_auth: true` when credentials come from the calling
+# client rather than from the proxy. Two things follow: the Prober
+# never probes it, and a quota or authentication failure on it is
+# reported but never Excludes it, because such a failure belongs to one
+# caller and not to the Offering.
+#
+# Set `proxy_authenticated: true` on a `passthrough_auth` entry only
+# when the proxy in fact holds and resolves this Offering's credential
+# itself, from its own process environment -- not from the calling
+# client, despite `passthrough_auth` being set. Evidence for this: a
+# call carrying only the proxy's own master key, no client credential
+# at all, still returns a completion. This flag governs the smoke check
+# only. It lets the smoke check include the Offering, calling it under
+# the proxy's own credential, because that call now measures the real
+# thing. It changes nothing about the Prober or about `reduce`: both
+# still treat the entry as ordinary Passthrough Auth. Leave it unset
+# (default `false`) for a Passthrough Auth entry where the caller truly
+# supplies the credential.
+#
+# Set `supersedes` to the Feed Offering id this declaration replaces,
+# when a Declared Offering and a Discovered one would otherwise share
+# an Alias. A Declared Offering always wins the collision; `supersedes`
+# just records which Feed entry it replaces, so the run does not stop.
+#
+# `model_info` is optional and passed through verbatim next to
+# `litellm_params`, for a value litellm reads from there instead
+# (for example, a calling mode). Put this Offering's Stated Limit here:
+# `max_input_tokens` and `max_output_tokens`. State only a figure you
+# verified. litellm guesses 200000/64000 for any `claude-`-shaped model
+# absent from its own map. A wrong guess is therefore the default. See
+# docs/gotchas.md and ADR 0006.
+#
+# `capabilities` is optional and lists what this Offering can do, for
+# example "reasoning". The Feed publishes a capability list for a
+# Discovered Offering and nothing at all for a Declared one, so an agent
+# reading `guidance` learns nothing about a direct vendor entry unless
+# you state it here. Read by `guidance` alone; it never reaches the
+# Generated Config, because litellm has no such key.
+# ─────────────────────────────────────────────────────────────
+declared:
+  # A direct vendor entry, credentials supplied by the proxy itself.
+  - alias: "claude-example-direct-model"
+    litellm_params:
+      model: "anthropic/example-direct-model"
+
+  # A subscription entry whose credentials come from the caller, not
+  # from the proxy. No api_key here: the client supplies its own.
+  - alias: "claude-example-caller-subscription"
+    passthrough_auth: true
+    model_info:
+      mode: responses
+    litellm_params:
+      model: "chatgpt/example-caller-subscription-model"
+
+  # A Client-Facing Variant, and its plain sibling.
+  #
+  # Both send the SAME request. The provider never sees the `[1m]`
+  # suffix. The variant exists because a calling client reads its own
+  # context budget out of the Alias name: a client asks for the plain
+  # Alias, budgets 200000 tokens, and compacts against a model that
+  # accepts 1000000. See CONTEXT.md, "Client-Facing Variant", and
+  # ADR 0007.
+  #
+  # Do NOT add a `context-1m` beta header. The 1M window is the default
+  # and the maximum on this model family, and no header enables it.
+  #
+  # Both Aliases state the SAME Stated Limit, and must. They share one
+  # `litellm_params.model`, and litellm holds one cost-map entry per
+  # model string, so whichever entry is registered last defines both.
+  # `generate` warns when two such Aliases disagree.
+  - alias: "claude-example-1m-model"
+    passthrough_auth: true
+    capabilities: ["chat", "streaming", "tool_use", "reasoning", "vision"]
+    model_info:
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+    litellm_params:
+      model: "anthropic/example-1m-model"
+
+  - alias: "claude-example-1m-model[1m]"
+    passthrough_auth: true
+    capabilities: ["chat", "streaming", "tool_use", "reasoning", "vision"]
+    model_info:
+      max_input_tokens: 1000000
+      max_output_tokens: 128000
+    litellm_params:
+      model: "anthropic/example-1m-model"
+
+  # ── Giving a Declared Offering numbers a caller can weigh ──
+  #
+  # The Feed does not publish this route, so it states no score, no rate
+  # and no pricing kind. All three gaps are about the FEED's coverage,
+  # never about the model, and left alone they sort the strongest models
+  # on the proxy last and report them as billable. See ADR 0011.
+  #
+  # `reference_model` names the Canonical Model id the Feed publishes for
+  # the SAME model. The Route then joins that model's Guidance Row and the
+  # row carries the Feed's score, display name and capabilities.
+  #
+  # Read the id off the Feed. Never derive it from the Alias:
+  #
+  #   jq -r '.models[] | select(.id|test("gpt-5.6-sol")) |
+  #     [.id, .canonical_model.id, .quality.coding_score] | @tsv' feed.json
+  #
+  # WARNING: a Reference Model supplies NO limit. A score describes the
+  # model; a limit describes the endpoint. State this endpoint's own
+  # window in `model_info`, from a measurement (ADR 0006). Below, the seat
+  # accepts 350000 tokens where the Feed states 1050000 for the same model
+  # on the vendor's API.
+  #
+  # `cost_basis` is one of free, flat_rate, metered, passthrough, unknown.
+  # Without it a Declared Offering reads `passthrough` when
+  # `passthrough_auth` is set and `unknown` otherwise, and an agent is
+  # told to treat `unknown` as spend. Say `flat_rate` for a subscription
+  # or a fixed-rate host, so a caller stops avoiding capacity already paid
+  # for.
+  #
+  # `pricing` states the token rates, USD per 1,000,000 tokens. Both rates
+  # or neither. It overrides the Reference Model's rates, which belong to
+  # another vendor serving the same model. On a `free` or `flat_rate`
+  # Offering these state the RELATIVE burn on a pool, never an amount
+  # billed: a subscription holds a finite allowance, and one model can
+  # draw on it 50 times faster than another. Omit `pricing` to inherit the
+  # cheapest paid mirror's rate, which is the usual choice for a
+  # subscription seat reaching a public model.
+  - alias: "claude-example-seat-model"
+    reference_model: "example-vendor/example-model"
+    cost_basis: "flat_rate"
+    model_info:
+      max_input_tokens: 350000
+    litellm_params:
+      model: "openai/example-seat-model"
+      api_base: "http://127.0.0.1:4011/v1"
+      api_key: "os.environ/EXAMPLE_SEAT_WORKER_KEY"
+
+  # A private host on a fixed-rate plan. The operator states the rate,
+  # because the plan's rate is not the public mirror's price.
+  #
+  # `fair_use` marks an allowance that tolerates load badly: unmetered under
+  # a fair-use clause, with no number stating the line. It is NOT a Cost
+  # Basis — `cost_basis` says who bills, and this plan does bill flat rate.
+  # Load tolerance is a second question, so it gets a second field.
+  #
+  # Set it and a caller must name this host rather than failing over into it
+  # when its free capacity drains. It changes no ranking. See ADR 0012.
+  - alias: "claude-example-private-host-model"
+    reference_model: "example-vendor/example-model"
+    cost_basis: "flat_rate"
+    fair_use: true
+    pricing:
+      input_usd_per_1m_tokens: 0.25
+      output_usd_per_1m_tokens: 0.50
+    # One credential bills every Offering on this host, so one quota
+    # exhaustion makes the rest worth MEASURING. It Excludes none of them
+    # (ADR 0004), and the credential identifies the pool (ADR 0009).
+    entitlement: shared_pool
+    litellm_params:
+      model: "openai/example-private-host-model"
+      api_base: "https://example-private-host.invalid/api/v1"
+      api_key: "os.environ/EXAMPLE_PRIVATE_HOST_API_KEY"
+
+  # A declaration that supersedes a Feed Offering the operator prefers
+  # to call directly rather than through the Feed's own routing.
+  - alias: "claude-example-superseding-model"
+    supersedes: "example-mixed-provider:coder-large"
+    litellm_params:
+      model: "anthropic/example-superseding-model"
+      api_base: "os.environ/EXAMPLE_DIRECT_BASE_URL"
+      api_key: "os.environ/EXAMPLE_DIRECT_API_KEY"
+
+  # Three Declared Offerings for one Sub-allowance each, matching the
+  # `headroom.sources."pool:example-gemini".windows` mapping below. Each
+  # names `entitlement_pool: "example-gemini"`, so `allowance_id_for_declared`
+  # reads `pool:example-gemini` for all three -- the same Allowance the
+  # headroom mapping keys on. `sub_allowance: true` still marks each one
+  # capped inside that pool for HEALTH containment (`reduce.py`); which
+  # slot each one's HEADROOM binds on is named separately, in
+  # `headroom.sources."pool:example-gemini".members` below, keyed by each
+  # Offering's own Health Key -- its Alias, since none of these is a
+  # Client-Facing Variant. Measured 2026-07-29: `codexbar --provider
+  # gemini` labels its three slots `Pro`, `Flash` and `Flash Lite`, one
+  # quota per MODEL rather than a nested time window, so each model gets
+  # its own Sub-allowance instead of sharing one worst-of figure. See
+  # `docs/gotchas.md`, "codexbar's three window slots do not mean one
+  # thing".
+  #
+  # A Feed provider running `mode: all` can claim a slot the same way,
+  # naming its own Offering id in `members` instead of a Declared
+  # Offering's Alias -- see the `members` mapping below. These three stay
+  # Declared Offerings only because this is a public example and the
+  # operator's real `gemini` provider needs a live credential.
+  - alias: "claude-example-gemini-pro"
+    reference_model: "example-gemini/example-gemini-pro"
+    cost_basis: "flat_rate"
+    entitlement_pool: "example-gemini"
+    sub_allowance: true
+    litellm_params:
+      model: "gemini/example-gemini-pro"
+      api_key: "os.environ/EXAMPLE_GEMINI_API_KEY"
+
+  - alias: "claude-example-gemini-flash"
+    reference_model: "example-gemini/example-gemini-flash"
+    cost_basis: "flat_rate"
+    entitlement_pool: "example-gemini"
+    sub_allowance: true
+    litellm_params:
+      model: "gemini/example-gemini-flash"
+      api_key: "os.environ/EXAMPLE_GEMINI_API_KEY"
+
+  - alias: "claude-example-gemini-flash-lite"
+    reference_model: "example-gemini/example-gemini-flash-lite"
+    cost_basis: "flat_rate"
+    entitlement_pool: "example-gemini"
+    sub_allowance: true
+    litellm_params:
+      model: "gemini/example-gemini-flash-lite"
+      api_key: "os.environ/EXAMPLE_GEMINI_API_KEY"
+
+  # A model on the same account that NO slot measures. The source
+  # publishes Pro, Flash and Flash Lite; this one draws on its own quota,
+  # and nothing reads it. `headroom.sources` names it under `unmeasured`
+  # below, and it publishes `headroom: null`. No `sub_allowance` here:
+  # there is no window to be capped inside.
+  - alias: "claude-example-gemini-gemma"
+    reference_model: "example-gemini/example-gemini-gemma"
+    cost_basis: "flat_rate"
+    entitlement_pool: "example-gemini"
+    litellm_params:
+      model: "gemini/example-gemini-gemma"
+      api_key: "os.environ/EXAMPLE_GEMINI_API_KEY"
+
+  # A Sub-allowance capped inside a TIME window rather than by model --
+  # `headroom.sources."pool:example-claude-subscription"` below names
+  # `claude-weekly-scoped-fable` directly, with no `windows` entry
+  # inventing a slot for it. `sub_allowance: true` here is a different
+  # concern: it marks this Offering capped inside the pool for HEALTH
+  # containment (`reduce.py`, Health State). Which window its HEADROOM
+  # binds on is a separate declaration, in `members` below, and the two
+  # need not agree on a slot at all.
+  - alias: "claude-example-fable"
+    reference_model: "example-anthropic/example-fable"
+    cost_basis: "flat_rate"
+    entitlement_pool: "example-claude-subscription"
+    sub_allowance: true
+    litellm_params:
+      model: "anthropic/example-fable"
+      api_key: "os.environ/EXAMPLE_ANTHROPIC_API_KEY"
+
+# ─────────────────────────────────────────────────────────────
+# client_facing_variants
+#
+# Whether the Generator adds a Client-Facing Variant: a second Alias for
+# the same Offering, carrying a suffix, so a calling client budgets the
+# Offering's whole context window. A client reads its own budget out of
+# the Alias name, not from what the proxy reports. See CONTEXT.md,
+# "Client-Facing Variant", and ADR 0007.
+#
+# Omit this whole block and the Generator adds no variant at all.
+#
+# `minimum_context_tokens` is the Feed-stated context window at which an
+# Offering qualifies. The FEED decides, so this cannot go stale: a model
+# that grows its window earns a variant on the next run, and a model the
+# Feed does not size earns none. Nothing is derived from a model name.
+#
+# `suffix` is the marker the client reads. Keep it consistent with the
+# threshold: `[1m]` means one million, so do not pair it with a threshold
+# of 200000.
+#
+# WARNING: a wider budget is a claim about the CLIENT, never about the
+# provider. The suffix makes a client willing to send a million tokens; it
+# does not make a provider accept them. Where a provider refuses the wider
+# window, a variant trades an early compaction for a hard refusal deep
+# into a long session. Set the threshold to a figure your providers really
+# serve.
+#
+# `operator_stated` names an Offering that qualifies even though the Feed
+# does not size it, mapped to your reason. The reason is required, because
+# this key asserts a window the Feed does not publish. It grants the
+# variant only: it writes no Stated Limit, since a variant needs none and
+# an unverified figure would add a claim without adding a capability.
+# `generate` warns when a line here names an Offering the run did not
+# admit, so a stale line cannot sit here granting nothing.
+# ─────────────────────────────────────────────────────────────
+client_facing_variants:
+  suffix: "[1m]"
+  minimum_context_tokens: 1000000
+  operator_stated:
+    "example-mixed-provider:coder-large": "vendor docs state 1M; the Feed sizes it at nothing yet"
+
+# ─────────────────────────────────────────────────────────────
+# pacing
+#
+# Per-provider Probe pacing: `concurrency` caps simultaneous Probes,
+# `minimum_interval_seconds` sets the minimum gap between two Probes to
+# the same provider. `default` applies to a provider with no entry of
+# its own. Give a free tier a low concurrency and a long interval. Give
+# a subscription provider a higher concurrency; it tolerates parallel
+# calls.
+# ─────────────────────────────────────────────────────────────
+pacing:
+  default:
+    concurrency: 2
+    minimum_interval_seconds: 5
+  example-free-mirror:
+    concurrency: 1
+    minimum_interval_seconds: 10
+  example-subscription-pool:
+    concurrency: 3
+    minimum_interval_seconds: 2
+
+# ─────────────────────────────────────────────────────────────
+# feed
+#
+# Optional. Names the Feed `fetch` downloads. `url` is the Feed's own
+# address. `credential_env` names the environment variable that holds
+# your Feed credential; it never holds the token itself. `fetch` reads
+# the token from that variable at run time. `maximum_age_hours` sets how
+# old the last successful download may be before `doctor` reports the
+# Feed Document as stale.
+#
+# Leave `feed` out of a Policy whose Feed Document is produced some
+# other way; `fetch` is not required.
+# ─────────────────────────────────────────────────────────────
+feed:
+  url: "https://example.invalid/feed.json"
+  credential_env: "EXAMPLE_FEED_TOKEN"
+  maximum_age_hours: 24
+
+# ─────────────────────────────────────────────────────────────
+# schedule
+#
+# `enabled` turns the schedule on or off. `interval_minutes` sets the
+# run interval. `require_proxy` skips a run while the proxy is down.
+# `maximum_staleness_hours` forces a run despite a down proxy once the
+# config has gone this long without one.
+# ─────────────────────────────────────────────────────────────
+schedule:
+  enabled: true
+  interval_minutes: 60
+  require_proxy: true
+  maximum_staleness_hours: 24
+
+# ─────────────────────────────────────────────────────────────
+# safety
+#
+# `maximum_removal_share` refuses a write that would remove more than
+# this share of the current Aliases. `snapshot_count` sets how many
+# prior Generated Config snapshots to keep for rollback.
+# ─────────────────────────────────────────────────────────────
+safety:
+  maximum_removal_share: 0.25
+  snapshot_count: 10
+
+# ─────────────────────────────────────────────────────────────
+# translation_overrides
+#
+# Optional. Overrides the translation for one named Offering, by
+# Offering id (`<provider>:<provider_model_id>`). This is the escape
+# hatch for a single exceptional Offering. A whole provider needing an
+# exception belongs in `providers.<id>.translation` instead — see
+# `example-legacy-provider` above.
+#
+# Each entry's keys replace the translated `litellm_params`, key by
+# key, after any provider-level `translation` override already applied.
+# Leave this key out of a Policy that needs no per-Offering exception;
+# most Policy files do.
+# ─────────────────────────────────────────────────────────────
+translation_overrides:
+  "example-mixed-provider:coder-small":
+    api_base: "os.environ/EXAMPLE_MIXED_PROVIDER_ALTERNATE_BASE_URL"
+
+# ─────────────────────────────────────────────────────────────
+# proxy_settings
+#
+# Optional. The Generated Config is a complete litellm config.yaml: the
+# proxy must load it with no manual merge. `general_settings` and
+# `litellm_settings` here hold every proxy setting the Generator does
+# not derive from the Feed. Each is an arbitrary mapping, written into
+# the Generated Config verbatim. Leave `proxy_settings` out of a Policy
+# that adds no such setting; the Generated Config then still carries
+# only `model_list` (and a derived `litellm_settings`, when one Alias
+# needs the envelope-unwrapping handler — see below).
+#
+# ONE RULE MATTERS: never write `litellm_settings.custom_provider_map`
+# by hand. The Generator always derives it from the Feed's own envelope
+# routing (an Offering that wraps its successful responses routes
+# through a custom handler; the map entry follows from that). A
+# hand-written map would go stale the moment the Feed's routing
+# changes, with no symptom to notice by. Writing it here does not
+# break the run: `plan` reports the conflict and the derived map wins,
+# so the hand-written entry is silently ignored, not merged.
+# ─────────────────────────────────────────────────────────────
+proxy_settings:
+  general_settings:
+    forward_client_headers_to_llm_api: true
+    # The master key belongs here. litellm reads
+    # `general_settings.master_key` and never reads a `master_key` under
+    # `litellm_settings`. A key in the wrong block leaves the proxy on
+    # the environment fallback alone.
+    master_key: "os.environ/EXAMPLE_PROXY_MASTER_KEY"
+  litellm_settings:
+    drop_params: true
+    callbacks:
+      - example_role_fix.example_system_role_fix
+    # Do NOT set custom_provider_map here. It is derived, not declared.
+
+# ─────────────────────────────────────────────────────────────
+# headroom
+#
+# Optional. Declares which Allowance each codexbar Reading belongs to.
+# `headroom refresh` reads codexbar and writes Headroom State; nothing
+# else reads that file yet.
+#
+# THE JOIN IS DECLARED HERE, NEVER INFERRED FROM A NAME. Measured
+# 2026-07-28: matching by name would send the ClinePass Reading to
+# `provider:cline-pass`, which holds 0 Offerings in scope, while the
+# real Allowance that serves ClinePass models, `provider:cline`, holds
+# 8 answering. The inferred join reports a fully drawn Allowance as
+# unmeasured and an empty one as drained. ADR 0012 already forbids
+# inferring an Allowance from a name; this is that rule applied to a
+# second key.
+#
+# Each key is an Allowance id, keyed exactly as `entitlements` reports
+# it — an Allowance does not always carry a Policy block of its own, so
+# this map cannot join through one. Each value reads
+# `codexbar:<providerID>/<accountEmail>`, matched against the WHOLE
+# identity string codexbar publishes for that entry. Never parse inside
+# it.
+#
+# A provider that publishes no account email states an empty one: the
+# trailing slash stays, so `"codexbar:opencodego/"` never collides with
+# an account that starts publishing an email later.
+#
+# TWO SEATS, ONE PROVIDER: `all_accounts_providers`. `codexbar --provider
+# codex` alone returns one Reading, and this example Policy holds two
+# ChatGPT seats with their own credentials, so a single call could never
+# name which seat it measured (ADR 0009).
+#
+# Measured 2026-07-29: `codexbar --provider codex --all-accounts --format
+# json` returns BOTH accounts. They state the same `providerID` and
+# differ only by `accountEmail`, so the ordinary join key above already
+# discriminates them once both reach the same document — see
+# `all_accounts_providers` below.
+#
+# codexbar's own `--help` states "Account selection requires a single
+# provider", so `--all-accounts` cannot ride the one batched call every
+# OTHER mapped provider shares. `headroom.all_accounts_providers` names
+# `codex` ONCE, and `headroom refresh` then gives it its own call.
+#
+# STATED, NEVER DETECTED. Two `sources` entries sharing a `providerID`
+# looks like proof enough on its own, but the failing case is one account
+# of two mapped: a plain call then returns whichever account codexbar
+# treats as default, which may not be the mapped one, and the key
+# matches no Reading for a reason invisible from outside. Find each
+# account's id with:
+#
+#     codexbar --provider codex --all-accounts --format json
+#
+# and read `identity.accountEmail` from each entry.
+#
+# `command` defaults to `codexbar` and exists so a test can point it at
+# a fixture script instead of the real binary. `interval_minutes`
+# defaults to 15 and is read by the scheduled refresh job, not by this
+# command.
+#
+# `timeout_seconds` bounds one `command` invocation, defaulting to 40.
+# Measured 2026-07-28: 24s for four mapped providers, 21-31s for every
+# provider codexbar knows. A fifth or sixth mapped provider plausibly
+# crosses 40s, after which every refresh times out and the capability
+# goes stale for good. Raise this before that happens, rather than after.
+#
+# Leave `headroom` out of a Policy that has not mapped codexbar yet;
+# `headroom refresh` then does nothing and says so.
+#
+# `demote_at_full` turns a Reading of 100% into a demotion: `guidance`
+# stops calling that Route `recommendable`, and a row whose every Route
+# reads 100% reports `callable_now: false`. It NEVER excludes the Route
+# from the Generated Config, and it NEVER writes Health State — a
+# Reading is a report, not a measurement, and the two files must stay
+# tellable apart.
+#
+# DEFAULTS FALSE. LEAVE IT FALSE UNTIL YOU HAVE WATCHED REAL READINGS
+# FOR REAL WEEKS. Four things stand behind this flag, and none of them
+# had run in anger when it was written:
+#
+#   - codexbar's own semantics at the 100% boundary. Measured 2026-07-29
+#     was the first day codexbar answered for more than one provider at
+#     once; nobody has yet watched a window cross 100% and confirmed
+#     what codexbar does at the line.
+#   - the hand-written `sources` map above. A wrong join attaches a
+#     100%-drawn Reading to the wrong Allowance, or to none.
+#   - the expiry rule in `headroom.window_is_void`. A window that never
+#     goes void when it should would demote a Route long after its
+#     provider refilled it.
+#   - the Sub-allowance join in `headroom.route_binding_window`. A wrong
+#     join could demote every Route on an Allowance over one
+#     Sub-allowance's own draw, or the reverse.
+#
+# The first Route this flag can demote on this Policy is
+# `pool:claude-subscription` — the operator's own main agent. If any of
+# the four is wrong, agents fail over to a ChatGPT seat while Claude
+# still answers normally, and this capability is not the first place a
+# reader would look. Turn it on only after watching, across real weeks:
+# a window seen reaching 100%, a Reading seen going void at its own
+# reset with no help from a human, and a Sub-allowance seen behaving as
+# the `route_binding_window` doc describes.
+# ─────────────────────────────────────────────────────────────
+headroom:
+  command: "codexbar"
+  interval_minutes: 15
+  timeout_seconds: 40
+  demote_at_full: false
+  # Every codexbar provider id that holds more than one account. `codex`
+  # is the operator's own case: two ChatGPT seats, one provider. Named
+  # ONCE here, never on each `sources` entry below — see the comment
+  # above this block.
+  all_accounts_providers: ["codex"]
+  sources:
+    # Measured 2026-07-28. Only some providers publish an accountEmail.
+    # `codex`, `gemini`, `grok` and `antigravity` do. `claude`,
+    # `clinepass` and `opencodego` do not, so their key ends at the
+    # slash. Copy what the tool states, and check it with
+    # `codexbar --format json --provider <id>`. A key that matches no
+    # Reading leaves the Allowance with no Headroom, and says nothing.
+    "pool:claude-subscription": "codexbar:claude/"
+    "provider:cline": "codexbar:clinepass/"
+    #
+    "provider:opencode-go": "codexbar:opencodego/"
+    #
+    # VERIFY A SOURCE AGAINST THE PROVIDER'S DASHBOARD BEFORE MAPPING IT.
+    # `doctor` reports a mapping that broke. Nothing reports one that was
+    # wrong from the start, so check each provider once, by hand, and
+    # compare a drawn Allowance against an untouched one.
+    #
+    # Measured 2026-07-29: Claude and ClinePass agreed with their
+    # dashboards exactly, and ClinePass is the case the binding rule
+    # exists for -- two windows read 0% while the third read 100%.
+    #
+    # OpenCode Go looked wrong at first read and was not. codexbar states
+    # `(local)` as its source for that provider, which reads as a stale
+    # local cache, and its figure disagreed with a dashboard read minutes
+    # earlier. The operator checked, and codexbar was right. A source
+    # reading `(local)` is worth confirming, never worth assuming wrong.
+    #
+    # TWO SEATS, ONE PROVIDER. Both share `providerID: "codex"` and
+    # differ only by `accountEmail` — the addresses below are
+    # placeholders; substitute the ones `codexbar --provider codex
+    # --all-accounts --format json` states for your own two seats.
+    "credential:EXAMPLE_CHATGPT_SEAT1_WORKER_KEY": "codexbar:codex/one@example.com"
+    "credential:EXAMPLE_CHATGPT_SEAT2_WORKER_KEY": "codexbar:codex/two@example.com"
+    #
+    # A PLAIN STRING MAPS A PROVIDER ONLY WHERE ITS THREE SLOTS ARE TIME
+    # WINDOWS.
+    #
+    # A Route binds on the WORST live window, because nested time windows
+    # constrain one Allowance at once. `codexbar` fills `primary`,
+    # `secondary` and `tertiary` differently per provider, and the JSON
+    # never labels them.
+    #
+    # Read the labels before you map a provider:
+    #
+    #     codexbar --provider <id>
+    #
+    # `Session`, `5-hour`, `Weekly` and `Monthly` name periods, so the
+    # slots nest and a plain string maps the provider correctly. `Pro` and
+    # `Flash` name models, so they do not: see Gemini below.
+    #
+    # MAP A PER-MODEL PROVIDER WITH A MAPPING INSTEAD OF A PLAIN STRING.
+    #
+    # Measured 2026-07-29: Gemini fills its three slots with one quota per
+    # MODEL, not a nested time window: `Pro`, `Flash` and `Flash Lite`. The
+    # free plan includes no Pro, so Pro states 100% spent while Flash and
+    # Flash Lite state 0. A plain string binds on the worst of the three
+    # and reports the whole Allowance fully drawn while two of its three
+    # models answer. A second tell besides the labels: every per-model
+    # slot states the same `windowMinutes` — Gemini stated 1440 three
+    # times, where ClinePass states 300, 10080 and 43200. See
+    # `docs/gotchas.md`, "codexbar's three window slots do not mean one
+    # thing".
+    #
+    # `windows` names what each slot measures instead: an operator-chosen
+    # Sub-allowance id, never codexbar's own id (codexbar labels these
+    # three slots only in its TEXT output, never in the JSON). A named
+    # slot leaves the worst-of computation above; naming all three, as
+    # here, leaves none, so this Allowance publishes no Headroom of its
+    # own — correct, since nothing then caps it as a whole.
+    #
+    # `members` names which Health Key draws on each slot. A key takes
+    # EITHER of two forms:
+    #
+    #   1. A slot id `windows` declares -- Gemini below. Use this form for
+    #      a per-model provider, where `windows` already names the slot.
+    #   2. A codexbar `extraRateWindows` id, named directly, with no
+    #      `windows` entry -- Claude's fable case further below. Use this
+    #      form for a Sub-allowance capped inside a TIME window that is not
+    #      one of the three named slots. `route_binding_window` resolves an
+    #      extra window first and a declared slot second, so both forms
+    #      reach a figure the same way.
+    #
+    # NEVER invent a `windows` slot for form 2. Naming one states something
+    # FALSE about the Reading (that slot IS this window, when it is not),
+    # and it leaves the parent Allowance's own worst-of computation, so a
+    # real slot arriving later on that id would stop binding with no
+    # symptom (measured 2026-07-28 against Claude's `tertiary`).
+    #
+    # a Feed Offering's own id or a Declared Offering's Alias names a
+    # member either way, since none of these examples is a Client-Facing
+    # Variant. A slot named in `windows` but missing from `members` stays
+    # out of the worst-of computation with nobody assigned to it yet;
+    # `doctor` reports that gap rather than staying silent. Match every
+    # entry EXACTLY: never a glob, a prefix or a regular expression.
+    # Measured 2026-07-29, `gemini-3*-flash*` (written for Flash) also
+    # matches `gemini-3.1-flash-lite`, which would silently give Flash
+    # Lite's Route Flash's own figure.
+    "pool:example-gemini":
+      source: "codexbar:gemini/operator@example.com"
+      windows:
+        primary: "gemini-pro"
+        secondary: "gemini-flash"
+        tertiary: "gemini-flash-lite"
+      members:
+        "gemini-pro": ["claude-example-gemini-pro"]
+        "gemini-flash": ["claude-example-gemini-flash"]
+        "gemini-flash-lite": ["claude-example-gemini-flash-lite"]
+      #
+      # A SLOT NOBODY DRAWS ON KEEPS ITS ENTRY, WITH AN EMPTY LIST.
+      #
+      # An absent slot key and an empty list mean opposite things.
+      # Absent says "nobody has assigned this yet", and `doctor` fails
+      # `headroom.member.empty`. An empty list says "nothing admitted
+      # draws on it", and it passes.
+      #
+      # Measured 2026-07-29 on a free Gemini plan: the plan includes no
+      # Pro, so no Pro model is admitted, and its `primary` slot reads
+      # 100% used. Removing the slot from `windows` was the only other way
+      # to pass, and it is wrong -- an undeclared slot rejoins the
+      # parent's worst-of computation, so the whole Allowance would report
+      # exhausted while Flash and Flash Lite sit untouched. Declare the
+      # slot empty: it keeps Pro out of that computation, and it keeps a
+      # truthful home for a Pro model admitted later.
+      #
+      # A HEALTH KEY THAT DRAWS ON NO PUBLISHED WINDOW GOES IN `unmeasured`.
+      #
+      # A per-model provider can serve a model outside all three slots.
+      # The same Gemini account serves Gemma, and codexbar publishes no
+      # window for it.
+      #
+      # Without this key the operator has two choices, and both are worse
+      # than silence. Leaving the Health Key out fails
+      # `headroom.member.unclaimed`, which is right to fire -- an
+      # unassigned key is normally a gap. Listing it under a slot states
+      # something FALSE about the Reading, the same defect the `windows`
+      # comments above warn about.
+      #
+      # Every Route on a key named here reads `headroom: null`, with or
+      # without the list. The list is how the operator says the silence is
+      # deliberate. `doctor` reports an entry naming no known Health Key,
+      # exactly as it does for `members`.
+      unmeasured:
+        - "claude-example-gemini-gemma"
+
+    # Form 2: `claude-weekly-scoped-fable` is a codexbar extra window, not
+    # one of Claude's three named slots (its own three ARE nested time
+    # windows -- Session, 5-hour, Weekly -- so this Allowance needs no
+    # `windows` mapping of its own; see the plain-string entries above).
+    # `claude-example-fable`'s Route binds on the worse of this window and
+    # the Allowance's own parent window, exactly as an operator-declared
+    # slot would.
+    "pool:example-claude-subscription":
+      source: "codexbar:claude/"
+      members:
+        "claude-weekly-scoped-fable": ["claude-example-fable"]
+
+# ─────────────────────────────────────────────────────────────
+# ALLOWANCES: the Tier each Allowance bills under (ticket 12).
+#
+# A Headroom states a SHARE, and a share is scale-free. 89% used on a
+# Claude Max 5x seat is far more work than 89% used on a Max 1x seat, and
+# the figure alone cannot tell the two apart. State the Tier here, keyed
+# on the same Allowance id `headroom.sources` uses, so a reader gets
+# "89% of a Claude Max 5x" instead of a bare "89%".
+#
+# `tier` IS OPERATOR-STATED, LIKE `cost_basis`. Nothing here verifies it.
+# The source this project reads publishes no usable name for a
+# subscription level — `codexbar`'s own `loginMethod` field states "6"
+# for Claude, "team" for Codex, "Free" for Gemini, "API key" for
+# ClinePass, none of which names a Tier a caller could act on. So you
+# type it once, and it goes stale exactly like `policy.headroom.sources`
+# does: a downgraded seat you forget to edit here reads exactly like a
+# current one. See `docs/gotchas.md`, "A stale Tier reads exactly like a
+# current one".
+#
+# EVERY ENTRY IS A LABEL, NEVER A MEASUREMENT. `entitlements` and
+# `guidance` publish the string verbatim, beside the Allowance's
+# Headroom, and rank nothing by it. An Allowance this block does not
+# name still publishes `tier: null` — silence, not a claim that no Tier
+# exists.
+#
+# `doctor` reports one thing about this block: an `allowance_id` here
+# that no Offering, Discovered or Declared, reaches — a typo, or a
+# provider removed from Policy since. It cannot catch a Tier gone stale;
+# nothing can.
+# An entry may state `tier`, `scale_note`, both, or neither. A PRESENT
+# entry with no `tier` says the operator looked and found no subscription
+# level; an ABSENT entry says nobody looked, and `doctor` fails
+# `allowances.tier_unstated` for an Allowance that publishes a Headroom.
+# Both publish `tier: null` either way.
+#
+# `scale_note` is free prose, for a vendor that sells ONE fixed price with
+# ONE quota and no levels at all. `tier` then has nothing to hold, and a
+# caller reads a share against no scale whatever. Measured 2026-07-30 on
+# two such Allowances: one states its quota as "roughly 2x to 5x its API
+# cost", the other as about 12 USD per 5 hours of API-equivalent spend.
+# Both are real scale; neither is a subscription level.
+#
+# Prose, and deliberately not a number. The vendors state a RANGE or a
+# rough equivalence, and inventing a single figure they declined to give
+# would repeat what `metered` already got wrong here: a published list
+# price read as this account's own bill.
+# DRAW NOTES: how fast ONE Offering empties its Allowance.
+#
+# `allowances.<id>.scale_note` sizes the Allowance. This states the rate a
+# single Offering draws on it. A pool can hold six Offerings drawing at six
+# rates, and for a subscription Offering the Feed publishes no rate at all,
+# so nothing else can tell them apart.
+#
+# Keyed by Health Key -- a Feed Offering's own id, or a Declared Offering's
+# Alias. Matched exactly, the same rule `headroom.sources.<id>.members`
+# follows. `doctor` reports a key naming no known Health Key.
+#
+# Prose, never a number. A vendor states a multiple, a window and a
+# promotion at once; one figure would state something it did not. Published
+# on every `guidance` Route, verbatim. NOT on `entitlements`, which is keyed
+# by Allowance and has no Offering to hang it on.
+#
+# Measured 2026-07-30: one preview model billed 10% of its pool's normal
+# rate, and a stacked discount inside one daily window took a further 80%
+# off, compounding to 2%. State the window in UTC. The vendor stated it in
+# its own local time, which was eight hours from the operator's, so read as
+# local it named the wrong half of the day.
+draw_notes:
+  "example-pool:example-preview-model": "Preview: draws 10% of the normal rate. Between 14:00 and 00:00 UTC a stacked discount takes a further 80% off, compounding to 2%. Preview terms; the vendor may end them without notice."
+
+allowances:
+  "pool:example-claude-subscription":
+    tier: "claude-max-5x"
+  "provider:example-fixed-price":
+    scale_note: "10 USD/month, one quota, no levels. Vendor states it as roughly 2x-5x its own API cost."
+  "credential:EXAMPLE_CHATGPT_SEAT1_WORKER_KEY":
+    tier: "chatgpt-plus"
+  "credential:EXAMPLE_CHATGPT_SEAT2_WORKER_KEY":
+    tier: "chatgpt-plus"

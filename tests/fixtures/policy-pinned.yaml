@@ -1,0 +1,309 @@
+# A synthetic Policy. The pinned tests read THIS file.
+#
+# It names the public providers the committed Feed carries, so the
+# Discovery path is exercised, and it holds no operator credential,
+# host, subscription or seat. Every credential is an EXAMPLE_ name and
+# the private host is `.invalid`.
+#
+# Tests must never read the operator's own Policy. That file is not in
+# this repository, it is private, and every edit to it would break the
+# suite. See tests/fixtures/README.md.
+#
+# This file may be regenerated freely. It is not a hand-verified
+# artefact, unlike expected-config.yaml.
+providers:
+  openrouter:
+    mode: all
+    pricing:
+    - free
+  cline:
+    mode: all
+    pricing:
+    - free
+    response_envelope_key: data
+  cline-pass:
+    mode: all
+    response_envelope_key: data
+  opencode-zen:
+    mode: all
+    pricing:
+    - free
+  opencode-go:
+    mode: all
+    entitlement: shared_pool
+  groq:
+    mode: all
+    cost_basis: free
+  gemini:
+    mode: all
+    cost_basis: free
+  qwencloud-token-plan:
+    mode: all
+    plan_edition: personal
+    entitlement: shared_pool
+quality:
+  minimum_coding_score: 18
+approved_candidates:
+- opencode-go:kimi-k3
+- cline-pass:cline-pass/deepseek-v4-flash
+# The OpenRouter free router: listed, free and unscored, so a Candidate.
+- openrouter:openrouter/free
+# Unscored, and named by the Sunsetting tests in test_acceptance.py.
+# Without these lines they stay Candidates and never reach the config.
+- opencode-go:glm-5
+- opencode-go:kimi-k2.5
+- opencode-go:minimax-m2.5
+- opencode-go:qwen3.5-plus
+- opencode-go:hy3-preview
+- openrouter:poolside/laguna-m.1:free
+- gemini:gemini-3.1-flash-lite-preview
+# Unscored members of the Personal edition roster. test_plan_editions.py
+# pins that roster, and an unapproved Candidate carries no Alias.
+- qwencloud-token-plan:qwen3.6-flash
+- qwencloud-token-plan:qwen3.8-max-preview
+withheld:
+  groq:allam-2-7b: withheld by the fixture, to exercise the Withheld gate
+  # Both returned 502 gateway errors. test_plan_tracer.py needs them
+  # Withheld, and both carry no coding score, so it approves them as
+  # Candidates first to prove Withheld is the rule that keeps them out.
+  opencode-go:mimo-v2-omni: consistent 502 gateway errors
+  opencode-go:mimo-v2-pro: consistent 502 gateway errors
+naming:
+  alias_prefix: claude-
+  provider_labels:
+    # Labels for the public providers the committed Feed carries.
+    qwencloud-token-plan: qwen-token-plan
+    cline: cline-free
+    example-subscription-pool: sub-pool
+    example-free-mirror: free-mirror
+    example-account-entitlement-provider: acct-provider
+    example-mixed-provider: mixed
+    example-legacy-provider: legacy
+  alias_overrides:
+    example-mixed-provider:coder-large: claude-mixed-coder-xl
+# Client-Facing Variants. Without this the `[1m]` Declared Offering
+# reads as an Offering of its own, and it shares its sibling's Health
+# Key (ADR 0007), not a record of its own.
+client_facing_variants:
+  suffix: '[1m]'
+  minimum_context_tokens: 1000000
+declared:
+- alias: claude-example-direct-model
+  litellm_params:
+    model: anthropic/example-direct-model
+- alias: claude-example-caller-subscription
+  passthrough_auth: true
+  model_info:
+    mode: responses
+  litellm_params:
+    model: chatgpt/example-caller-subscription-model
+- alias: claude-example-1m-model
+  passthrough_auth: true
+  capabilities:
+  - chat
+  - streaming
+  - tool_use
+  - reasoning
+  - vision
+  model_info:
+    max_input_tokens: 1000000
+    max_output_tokens: 128000
+  litellm_params:
+    model: anthropic/example-1m-model
+- alias: claude-example-1m-model[1m]
+  variant_of: claude-example-1m-model
+  passthrough_auth: true
+  capabilities:
+  - chat
+  - streaming
+  - tool_use
+  - reasoning
+  - vision
+  model_info:
+    max_input_tokens: 1000000
+    max_output_tokens: 128000
+  litellm_params:
+    model: anthropic/example-1m-model
+- alias: claude-example-seat-model
+  cost_basis: flat_rate
+  model_info:
+    max_input_tokens: 350000
+  litellm_params:
+    model: openai/example-seat-model
+    api_base: http://127.0.0.1:4011/v1
+    api_key: os.environ/EXAMPLE_CHATGPT_SEAT1_WORKER_KEY
+- alias: claude-example-seat-model-2
+  cost_basis: flat_rate
+  model_info:
+    max_input_tokens: 350000
+  litellm_params:
+    model: openai/example-seat-model
+    api_base: http://127.0.0.1:4012/v1
+    api_key: os.environ/EXAMPLE_CHATGPT_SEAT2_WORKER_KEY
+- alias: claude-private-host-minimax-m3
+  reference_model: minimax/minimax-m3
+  cost_basis: flat_rate
+  fair_use: true
+  pricing:
+    input_usd_per_1m_tokens: 0.25
+    output_usd_per_1m_tokens: 0.5
+  entitlement: shared_pool
+  litellm_params:
+    model: openai/minimax-m3
+    api_base: https://example-private-host.invalid/api/v1
+    api_key: os.environ/EXAMPLE_PRIVATE_HOST_API_KEY
+- alias: claude-private-host-deepseek-v4-pro
+  reference_model: deepseek/deepseek-v4-pro
+  cost_basis: flat_rate
+  fair_use: true
+  pricing:
+    input_usd_per_1m_tokens: 0.25
+    output_usd_per_1m_tokens: 0.5
+  entitlement: shared_pool
+  litellm_params:
+    model: openai/deepseek-v4-pro
+    api_base: https://example-private-host.invalid/api/v1
+    api_key: os.environ/EXAMPLE_PRIVATE_HOST_API_KEY
+- alias: claude-private-host-glm-5.2
+  reference_model: z-ai/glm-5.2
+  cost_basis: flat_rate
+  fair_use: true
+  pricing:
+    input_usd_per_1m_tokens: 0.25
+    output_usd_per_1m_tokens: 0.5
+  entitlement: shared_pool
+  litellm_params:
+    model: openai/glm-5.2
+    api_base: https://example-private-host.invalid/api/v1
+    api_key: os.environ/EXAMPLE_PRIVATE_HOST_API_KEY
+- alias: claude-private-host-qwen3.7-max
+  reference_model: qwen/qwen3.7-max
+  cost_basis: flat_rate
+  fair_use: true
+  pricing:
+    input_usd_per_1m_tokens: 0.25
+    output_usd_per_1m_tokens: 0.5
+  entitlement: shared_pool
+  litellm_params:
+    model: openai/qwen3.7-max
+    api_base: https://example-private-host.invalid/api/v1
+    api_key: os.environ/EXAMPLE_PRIVATE_HOST_API_KEY
+- alias: claude-example-superseding-model
+  supersedes: example-mixed-provider:coder-large
+  litellm_params:
+    model: anthropic/example-superseding-model
+    api_base: os.environ/EXAMPLE_DIRECT_BASE_URL
+    api_key: os.environ/EXAMPLE_DIRECT_API_KEY
+- alias: claude-example-gemini-pro
+  cost_basis: flat_rate
+  entitlement_pool: example-gemini
+  sub_allowance: true
+  litellm_params:
+    model: gemini/example-gemini-pro
+    api_key: os.environ/EXAMPLE_GEMINI_API_KEY
+- alias: claude-example-gemini-flash
+  cost_basis: flat_rate
+  entitlement_pool: example-gemini
+  sub_allowance: true
+  litellm_params:
+    model: gemini/example-gemini-flash
+    api_key: os.environ/EXAMPLE_GEMINI_API_KEY
+- alias: claude-example-gemini-flash-lite
+  cost_basis: flat_rate
+  entitlement_pool: example-gemini
+  sub_allowance: true
+  litellm_params:
+    model: gemini/example-gemini-flash-lite
+    api_key: os.environ/EXAMPLE_GEMINI_API_KEY
+- alias: claude-example-gemini-gemma
+  cost_basis: flat_rate
+  entitlement_pool: example-gemini
+  litellm_params:
+    model: gemini/example-gemini-gemma
+    api_key: os.environ/EXAMPLE_GEMINI_API_KEY
+- alias: claude-example-fable
+  cost_basis: flat_rate
+  entitlement_pool: example-claude-subscription
+  sub_allowance: true
+  litellm_params:
+    model: anthropic/example-fable
+    api_key: os.environ/EXAMPLE_ANTHROPIC_API_KEY
+allowances:
+  pool:example-claude-subscription:
+    tier: claude-max-5x
+  provider:example-fixed-price:
+    scale_note: 10 USD/month, one quota, no levels. Vendor states it as roughly 2x-5x its own API cost.
+  credential:EXAMPLE_CHATGPT_SEAT1_WORKER_KEY:
+    tier: chatgpt-plus
+  credential:EXAMPLE_CHATGPT_SEAT2_WORKER_KEY:
+    tier: chatgpt-plus
+headroom:
+  command: codexbar
+  interval_minutes: 15
+  timeout_seconds: 40
+  demote_at_full: false
+  all_accounts_providers:
+  - codex
+  sources:
+    pool:claude-subscription: codexbar:claude/
+    provider:cline: codexbar:clinepass/
+    provider:opencode-go: codexbar:opencodego/
+    credential:EXAMPLE_CHATGPT_SEAT1_WORKER_KEY: codexbar:codex/one@example.com
+    credential:EXAMPLE_CHATGPT_SEAT2_WORKER_KEY: codexbar:codex/two@example.com
+    pool:example-gemini:
+      source: codexbar:gemini/operator@example.com
+      windows:
+        primary: gemini-pro
+        secondary: gemini-flash
+        tertiary: gemini-flash-lite
+      members:
+        gemini-pro:
+        - claude-example-gemini-pro
+        gemini-flash:
+        - claude-example-gemini-flash
+        gemini-flash-lite:
+        - claude-example-gemini-flash-lite
+      unmeasured:
+      - claude-example-gemini-gemma
+    pool:example-claude-subscription:
+      source: codexbar:claude/
+      members:
+        claude-weekly-scoped-fable:
+        - claude-example-fable
+proxy_settings:
+  general_settings:
+    forward_client_headers_to_llm_api: true
+    master_key: os.environ/EXAMPLE_PROXY_MASTER_KEY
+  litellm_settings:
+    drop_params: true
+    # Route /v1/messages through chat/completions for every openai/
+    # provider. See docs/gotchas.md, "An OpenCode Go assistant turn must
+    # be a plain string".
+    use_chat_completions_url_for_anthropic_messages: true
+    # The Observation Journal hook this repository ships. Only the main
+    # proxy records: a worker knows an Offering under a name that
+    # carries no seat identity (ADR 0008).
+    callbacks:
+    - journal_failure_callback.observation_journal_callback
+feed:
+  url: https://example.invalid/feed.json
+  credential_env: EXAMPLE_FEED_TOKEN
+  maximum_age_hours: 24
+safety:
+  maximum_removal_share: 0.25
+  snapshot_count: 10
+schedule:
+  enabled: true
+  interval_minutes: 60
+  require_proxy: true
+  maximum_staleness_hours: 24
+pacing:
+  default:
+    concurrency: 2
+    minimum_interval_seconds: 5
+  example-free-mirror:
+    concurrency: 1
+    minimum_interval_seconds: 10
+  example-subscription-pool:
+    concurrency: 3
+    minimum_interval_seconds: 2

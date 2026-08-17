@@ -1,0 +1,17 @@
+{
+  "provider": "opencode-go",
+  "condition": "quota_exhausted_relative_reset",
+  "http_status": 429,
+  "body": {
+    "error": {
+      "message": "litellm.RateLimitError: RateLimitError: OpenAIException - Monthly usage limit reached. Resets in 16hr 32min. To continue using this model now, enable usage from your available balance: https://opencode.ai/workspace/<SCRUBBED:opencode-workspace-id>/go. Received Model Group=claude-opencode-go-grok-4.5\nAvailable Model Group Fallbacks=None",
+      "type": "throttling_error",
+      "param": null,
+      "code": "429"
+    }
+  },
+  "provenance": "captured 2026-07-27 through the operator's own proxy, one call to claude-opencode-go-grok-4.5 after the monthly plan ran out. The workspace id was scrubbed by name; it is an account identifier, not a credential.",
+  "expected_outcome": "self_healing",
+  "expected_reset_at": "2026-07-26T04:32:00Z",
+  "note": "The condition this whole feature exists for, and classify read it wrong. 'quota' does not appear, so the quota rule missed it; 'Resets in 16hr 32min' matched neither reset-time pattern. It fell through to the bare-429 rule as rate_limited with no reset, which is inconclusive and changes nothing -- so an Offering that could not answer for 16 hours stayed in the Generated Config. expected_reset_at is CAPTURE_NOW plus 16hr 32min, the harness's own clock."
+}

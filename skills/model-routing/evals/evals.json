@@ -1,0 +1,50 @@
+{
+  "skill_name": "model-routing",
+  "evals": [
+    {
+      "id": 0,
+      "name": "bulk-batch-cheap-model",
+      "prompt": "i've got 14 files that all need the same mechanical change - swapping a deprecated import for the new one. i want to farm these out to my local litellm proxy rather than burn my main session. which model should i point them at? i'd rather not eat into anything i'm paying per token for if i can avoid it.",
+      "expected_output": "Names a specific alias reachable now with cost_basis free or flat_rate, obtained from the CLI rather than guessed. Ideally mentions the failover route and paces free-tier work.",
+      "files": [],
+      "assertions": [
+        "Queried the live proxy with the litellm-maintainer CLI rather than answering from memory",
+        "Names at least one alias that actually exists on the proxy",
+        "Every proxy alias it names actually exists (no invented model ids)",
+        "The recommended alias is free or flat_rate, honouring 'not per token'",
+        "The recommended alias is available right now, not exhausted",
+        "Offers a fallback route or second option for when the first refuses"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "quota-failure-triage",
+      "prompt": "one of my batch jobs just died with 'quota exceeded' calling claude-qwen-token-plan-glm-5.2 through the proxy on localhost:4000. should i just retry it in a bit, or is that model gone for good? i've got the rest of the batch queued up behind it.",
+      "expected_output": "Checks entitlements, reports the concrete refill time (2026-07-29T21:45Z) and that the whole qwencloud-token-plan pool is dry, and names a different alias for the queued work rather than advising a blind retry.",
+      "files": [],
+      "assertions": [
+        "Queried the live proxy with the litellm-maintainer CLI rather than answering from memory",
+        "States the concrete refill time (2026-07-29)",
+        "Says the failure is pool-wide, not just this one model",
+        "Answers the actual question: not gone for good, but an immediate retry will fail",
+        "Names a specific working alternative alias for the queued batch",
+        "Every proxy alias it names actually exists (no invented model ids)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "hard-task-and-the-balance-trap",
+      "prompt": "i need to hand off a gnarly concurrency bug - a race in a worker pool, needs someone to actually reason about lock ordering. what's the strongest model my proxy can reach for that right now, and roughly what's it going to cost me? also how much of my monthly credit have i got left?",
+      "expected_output": "Uses the reasoning axis, names a specific reachable alias with its per-token rate or flat-rate basis, and states plainly that no remaining-credit figure exists rather than inventing one.",
+      "files": [],
+      "assertions": [
+        "Queried the live proxy with the litellm-maintainer CLI rather than answering from memory",
+        "Ranked on the reasoning axis, not the default coding axis",
+        "Names a specific reachable alias for the task",
+        "Gives a concrete cost figure or cost basis for that alias",
+        "States plainly that no remaining-credit figure is available",
+        "Does NOT invent a credit balance, percentage or spend total"
+      ]
+    }
+  ]
+}

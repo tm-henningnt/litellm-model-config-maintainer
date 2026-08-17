@@ -1,0 +1,16 @@
+{
+  "provider": "gemini",
+  "condition": "deprecated_identifier",
+  "http_status": 404,
+  "body": {
+    "error": {
+      "code": 404,
+      "message": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use a newer model for the latest features and improvements.",
+      "status": "NOT_FOUND"
+    }
+  },
+  "provenance": "captured live from the provider on 2026-07-25",
+  "expected_outcome": "gone",
+  "expected_reset_at": null,
+  "note": "The vendor removed the identifier for new accounts. The report advises removal from Policy."
+}

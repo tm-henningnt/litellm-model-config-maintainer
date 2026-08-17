@@ -1,0 +1,607 @@
+[
+  {
+    "provider": "codex",
+    "version": "0.145.0",
+    "pace": {
+      "secondary": {
+        "expectedUsedPercent": 8,
+        "willLastToReset": true,
+        "deltaPercent": -8,
+        "stage": "behind",
+        "summary": "8% in reserve | Expected 8% used | Lasts until reset"
+      }
+    },
+    "openaiDashboard": {
+      "creditEvents": [],
+      "usageBreakdown": [
+        {
+          "day": "2026-07-28",
+          "totalCreditsUsed": 0.06381255272642834,
+          "services": [
+            {
+              "creditsUsed": 0.06381255272642834,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-27",
+          "totalCreditsUsed": 0.12200166864546393,
+          "services": [
+            {
+              "creditsUsed": 0.12200166864546393,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-26",
+          "totalCreditsUsed": 2.02715692123156,
+          "services": [
+            {
+              "creditsUsed": 2.02715692123156,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-25",
+          "totalCreditsUsed": 0.1558370129536806,
+          "services": [
+            {
+              "creditsUsed": 0.1558370129536806,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-21",
+          "totalCreditsUsed": 131.59127529865623,
+          "services": [
+            {
+              "creditsUsed": 131.59127529865623,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-20",
+          "totalCreditsUsed": 64.62975357720707,
+          "services": [
+            {
+              "creditsUsed": 64.62975357720707,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-19",
+          "totalCreditsUsed": 50.90519090643637,
+          "services": [
+            {
+              "creditsUsed": 50.516583836374394,
+              "service": "CLI"
+            },
+            {
+              "creditsUsed": 0.38860707006197404,
+              "service": "Desktop App"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-18",
+          "totalCreditsUsed": 29.443893727112087,
+          "services": [
+            {
+              "creditsUsed": 29.443893727112087,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-17",
+          "totalCreditsUsed": 25.052041555425937,
+          "services": [
+            {
+              "creditsUsed": 25.052041555425937,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-16",
+          "totalCreditsUsed": 39.10821056000419,
+          "services": [
+            {
+              "creditsUsed": 37.63526813954171,
+              "service": "Unknown"
+            },
+            {
+              "creditsUsed": 1.4729424204624777,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-15",
+          "totalCreditsUsed": 21.4237252096474,
+          "services": [
+            {
+              "creditsUsed": 21.4237252096474,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-14",
+          "totalCreditsUsed": 300,
+          "services": [
+            {
+              "creditsUsed": 296.855922180204,
+              "service": "CLI"
+            },
+            {
+              "creditsUsed": 3.144077819796016,
+              "service": "Desktop App"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-13",
+          "totalCreditsUsed": 159.93505742095317,
+          "services": [
+            {
+              "creditsUsed": 118.19498248145044,
+              "service": "CLI"
+            },
+            {
+              "creditsUsed": 40.14584213749614,
+              "service": "Unknown"
+            },
+            {
+              "creditsUsed": 1.5942328020065941,
+              "service": "Desktop App"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-12",
+          "totalCreditsUsed": 31.741807274809435,
+          "services": [
+            {
+              "creditsUsed": 31.741807274809435,
+              "service": "Unknown"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-11",
+          "totalCreditsUsed": 44.411059525242344,
+          "services": [
+            {
+              "creditsUsed": 44.39969067979065,
+              "service": "Unknown"
+            },
+            {
+              "creditsUsed": 0.011368845451690852,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-10",
+          "totalCreditsUsed": 6.679364344946784,
+          "services": [
+            {
+              "creditsUsed": 6.679364344946784,
+              "service": "Unknown"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-09",
+          "totalCreditsUsed": 61.9404693101265,
+          "services": [
+            {
+              "creditsUsed": 58.73523285532819,
+              "service": "CLI"
+            },
+            {
+              "creditsUsed": 3.205236454798314,
+              "service": "Unknown"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-08",
+          "totalCreditsUsed": 56.871426486014165,
+          "services": [
+            {
+              "creditsUsed": 56.871426486014165,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-07",
+          "totalCreditsUsed": 43.671362058435534,
+          "services": [
+            {
+              "creditsUsed": 28.463670781102202,
+              "service": "Unknown"
+            },
+            {
+              "creditsUsed": 15.207691277333332,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-06",
+          "totalCreditsUsed": 18.04042937123892,
+          "services": [
+            {
+              "creditsUsed": 18.04042937123892,
+              "service": "Unknown"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-05",
+          "totalCreditsUsed": 14.270474875213065,
+          "services": [
+            {
+              "creditsUsed": 14.270474875213065,
+              "service": "Unknown"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-04",
+          "totalCreditsUsed": 81.94802233155235,
+          "services": [
+            {
+              "creditsUsed": 81.32488279437561,
+              "service": "Unknown"
+            },
+            {
+              "creditsUsed": 0.6231395371767453,
+              "service": "CLI"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-03",
+          "totalCreditsUsed": 13.718710698229557,
+          "services": [
+            {
+              "creditsUsed": 13.718710698229557,
+              "service": "Unknown"
+            }
+          ]
+        },
+        {
+          "day": "2026-07-01",
+          "totalCreditsUsed": 10.785792392349643,
+          "services": [
+            {
+              "creditsUsed": 10.785792392349643,
+              "service": "CLI"
+            }
+          ]
+        }
+      ],
+      "signedInEmail": "operator@example.com",
+      "accountPlan": "Team",
+      "secondaryLimit": {
+        "windowMinutes": 10080,
+        "usedPercent": 0
+      },
+      "codeReviewRemainingPercent": 100,
+      "dailyBreakdown": [],
+      "updatedAt": "2026-07-28T20:42:40Z"
+    },
+    "source": "codex-cli",
+    "usage": {
+      "loginMethod": "team",
+      "identity": {
+        "loginMethod": "team",
+        "providerID": "codex",
+        "accountEmail": "operator@example.com"
+      },
+      "accountEmail": "operator@example.com",
+      "secondary": {
+        "resetsAt": "2026-08-04T08:13:58Z",
+        "windowMinutes": 10080,
+        "usedPercent": 0,
+        "resetDescription": "Aug 4 at 10:13 AM"
+      },
+      "tertiary": null,
+      "primary": null,
+      "updatedAt": "2026-07-28T20:52:18Z"
+    },
+    "credits": {
+      "remaining": 0,
+      "updatedAt": "2026-07-28T20:52:18Z",
+      "events": []
+    }
+  },
+  {
+    "source": "claude",
+    "pace": {
+      "secondary": {
+        "expectedUsedPercent": 73,
+        "willLastToReset": false,
+        "deltaPercent": 9,
+        "stage": "ahead",
+        "etaSeconds": 96310,
+        "summary": "9% in deficit | Expected 73% used | Runs out in 1d 2h"
+      },
+      "primary": {
+        "expectedUsedPercent": 44,
+        "willLastToReset": true,
+        "deltaPercent": -40,
+        "stage": "farBehind",
+        "summary": "40% in reserve | Expected 44% used | Lasts until reset"
+      }
+    },
+    "usage": {
+      "loginMethod": "6",
+      "identity": {
+        "loginMethod": "6",
+        "providerID": "claude"
+      },
+      "secondary": {
+        "resetsAt": "2026-07-30T19:00:00Z",
+        "windowMinutes": 10080,
+        "usedPercent": 82,
+        "resetDescription": "resets Jul 30 at 9pm (Europe/Oslo)"
+      },
+      "tertiary": null,
+      "extraRateWindows": [
+        {
+          "title": "Fable only",
+          "window": {
+            "windowMinutes": 10080,
+            "resetDescription": "resets Jul 30 at 9pm (Europe/Oslo)",
+            "usedPercent": 59,
+            "resetsAt": "2026-07-30T19:00:00Z"
+          },
+          "id": "claude-weekly-scoped-fable"
+        }
+      ],
+      "updatedAt": "2026-07-28T20:52:27Z",
+      "primary": {
+        "resetsAt": "2026-07-28T23:40:00Z",
+        "windowMinutes": 300,
+        "usedPercent": 4,
+        "resetDescription": "resets Jul 29 at 1:40am (Europe/Oslo)"
+      }
+    },
+    "provider": "claude",
+    "version": "2.1.220"
+  },
+  {
+    "usage": {
+      "identity": {
+        "loginMethod": "API key",
+        "providerID": "clinepass"
+      },
+      "secondary": {
+        "windowMinutes": 10080,
+        "usedPercent": 0
+      },
+      "updatedAt": "2026-07-28T20:52:27Z",
+      "loginMethod": "API key",
+      "tertiary": {
+        "resetsAt": "2026-08-03T10:19:34Z",
+        "windowMinutes": 43200,
+        "usedPercent": 100
+      },
+      "primary": {
+        "windowMinutes": 300,
+        "usedPercent": 0
+      }
+    },
+    "provider": "clinepass",
+    "source": "api"
+  },
+  {
+    "usage": {
+      "secondary": {
+        "resetsAt": "2026-08-02T23:59:59Z",
+        "windowMinutes": 10080,
+        "usedPercent": 0
+      },
+      "updatedAt": "2026-07-28T20:52:27Z",
+      "tertiary": {
+        "resetsAt": "2026-08-28T13:31:28Z",
+        "windowMinutes": 43200,
+        "usedPercent": 0
+      },
+      "primary": {
+        "resetsAt": "2026-07-29T01:52:27Z",
+        "windowMinutes": 300,
+        "usedPercent": 0
+      }
+    },
+    "provider": "opencodego",
+    "source": "local"
+  },
+  {
+    "source": "oauth-api",
+    "usage": {
+      "loginMethod": "Free",
+      "identity": {
+        "loginMethod": "Free",
+        "providerID": "gemini",
+        "accountEmail": "operator@example.com"
+      },
+      "accountEmail": "operator@example.com",
+      "secondary": {
+        "resetsAt": "2026-07-29T20:52:30Z",
+        "windowMinutes": 1440,
+        "usedPercent": 0,
+        "resetDescription": "Resets in 23h 59m"
+      },
+      "tertiary": {
+        "resetsAt": "2026-07-29T20:52:30Z",
+        "windowMinutes": 1440,
+        "usedPercent": 0,
+        "resetDescription": "Resets in 23h 59m"
+      },
+      "primary": {
+        "resetsAt": "1970-01-01T00:00:00Z",
+        "windowMinutes": 1440,
+        "usedPercent": 100,
+        "resetDescription": "Resets soon"
+      },
+      "updatedAt": "2026-07-28T20:52:30Z"
+    },
+    "provider": "gemini",
+    "version": "0.46.0"
+  },
+  {
+    "usage": {
+      "loginMethod": "Google AI Plus",
+      "identity": {
+        "loginMethod": "Google AI Plus",
+        "providerID": "antigravity",
+        "accountEmail": "operator@example.com"
+      },
+      "accountEmail": "operator@example.com",
+      "secondary": {
+        "resetsAt": "2026-08-04T20:52:31Z",
+        "windowMinutes": 10080,
+        "usedPercent": 0
+      },
+      "tertiary": null,
+      "extraRateWindows": [
+        {
+          "title": "Gemini weekly",
+          "window": {
+            "windowMinutes": 10080,
+            "usedPercent": 0,
+            "resetsAt": "2026-08-04T20:52:31Z"
+          },
+          "id": "antigravity-quota-summary-gemini-weekly"
+        },
+        {
+          "title": "Claude/GPT weekly",
+          "window": {
+            "windowMinutes": 10080,
+            "usedPercent": 0,
+            "resetsAt": "2026-08-04T20:52:31Z"
+          },
+          "id": "antigravity-quota-summary-3p-weekly"
+        }
+      ],
+      "updatedAt": "2026-07-28T20:52:31Z",
+      "primary": {
+        "resetsAt": "2026-08-04T20:52:31Z",
+        "windowMinutes": 10080,
+        "usedPercent": 0
+      }
+    },
+    "provider": "antigravity",
+    "source": "cli"
+  },
+  {
+    "account": "CodexBar",
+    "usage": {
+      "loginMethod": "Balance: $10.00",
+      "identity": {
+        "loginMethod": "Balance: $10.00",
+        "providerID": "openrouter",
+        "accountEmail": "CodexBar"
+      },
+      "accountEmail": "CodexBar",
+      "secondary": null,
+      "openRouterUsage": {
+        "rateLimit": {
+          "requests": -1,
+          "interval": "10s"
+        },
+        "updatedAt": "2026-07-28T20:52:33Z",
+        "balance": 10,
+        "usedPercent": 0,
+        "keyDataFetched": true,
+        "keyUsageWeekly": 0,
+        "keyLimit": 0,
+        "totalUsage": 0,
+        "totalCredits": 10,
+        "keyUsage": 0,
+        "keyUsageDaily": 0,
+        "keyUsageMonthly": 0
+      },
+      "tertiary": null,
+      "updatedAt": "2026-07-28T20:52:33Z",
+      "primary": null
+    },
+    "provider": "openrouter",
+    "source": "api"
+  },
+  {
+    "usage": {
+      "identity": {
+        "providerID": "deepseek"
+      },
+      "secondary": null,
+      "updatedAt": "2026-07-28T20:52:36Z",
+      "tertiary": null,
+      "primary": null
+    },
+    "provider": "deepseek",
+    "source": "web"
+  },
+  {
+    "source": "grok-web",
+    "usage": {
+      "loginMethod": "SuperGrok",
+      "identity": {
+        "loginMethod": "SuperGrok",
+        "providerID": "grok",
+        "accountEmail": "operator@example.com",
+        "accountOrganization": "00000000-0000-0000-0000-000000000000"
+      },
+      "accountOrganization": "00000000-0000-0000-0000-000000000000",
+      "accountEmail": "operator@example.com",
+      "secondary": null,
+      "tertiary": null,
+      "primary": {
+        "resetsAt": "2026-07-29T00:00:00Z",
+        "usedPercent": 0
+      },
+      "updatedAt": "2026-07-28T20:52:37Z"
+    },
+    "provider": "grok",
+    "version": "0.2.112"
+  },
+  {
+    "error": {
+      "code": 1,
+      "message": "No available fetch strategy for openai.",
+      "kind": "provider"
+    },
+    "provider": "openai",
+    "source": "auto"
+  },
+  {
+    "error": {
+      "code": 1,
+      "message": "Azure OpenAI API key not configured. Set AZURE_OPENAI_API_KEY or configure an API key in Settings.",
+      "kind": "provider"
+    },
+    "provider": "azureopenai",
+    "source": "auto"
+  },
+  {
+    "error": {
+      "code": 1,
+      "message": "No Cursor session found. If you use Safari, grant CodexBar Full Disk Access in System Settings ▸ Privacy & Security. Please log in to cursor.com in Safari, Chrome, Microsoft Edge, Brave, Arc, Dia, ChatGPT Atlas, Chromium, Helium, Vivaldi, Yandex Browser, Firefox, Zen, Chrome Beta, Chrome Canary, Arc Beta, Arc Canary, Brave Beta, Brave Nightly, Microsoft Edge Beta, Microsoft Edge Canary, or Comet. You can also sign in to Cursor from the CodexBar menu (Add / switch account).",
+      "kind": "provider"
+    },
+    "provider": "cursor",
+    "source": "auto"
+  }
+]

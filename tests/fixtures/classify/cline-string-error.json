@@ -1,0 +1,13 @@
+{
+  "provider": "cline",
+  "condition": "string_error_body",
+  "http_status": 400,
+  "body": {
+    "error": "invalid model format. Expected format: modelType/model",
+    "success": false
+  },
+  "provenance": "captured live from the provider on 2026-07-25",
+  "expected_outcome": "needs_operator",
+  "expected_reset_at": null,
+  "note": "The point of this fixture is the SHAPE. The error value is a plain string beside a false success flag, so a body carrying an error, or a false success flag, is a failure whatever the HTTP status reports."
+}

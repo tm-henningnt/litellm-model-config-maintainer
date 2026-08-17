@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "litellm_maintainer"
+version = "0.1.0"
+description = "Keeps a litellm proxy config current from a model discovery Feed and an operator Policy."
+requires-python = ">=3.13"
+# The maintainer reads JSON and YAML and writes files. It never calls a
+# model and never imports litellm: no module under `litellm_maintainer/`
+# does. Keep litellm out of here, or every install of a config generator
+# pulls litellm's 82 requirements with it.
+dependencies = [
+    "pyyaml",
+    "httpx",
+]
+
+[project.scripts]
+litellm-maintainer = "litellm_maintainer.cli:main"
+
+[project.optional-dependencies]
+# litellm is a test dependency. The three modules under `providers/` run
+# inside the proxy, which supplies its own litellm; `deploy` copies them
+# as bytes and never imports them. Their tests do import them, so the
+# test run needs litellm and the tool itself does not.
+dev = [
+    "pytest",
+    "litellm",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+include = ["litellm_maintainer*", "providers*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# Ruff's default rule set, stated so a run here and a run in CI agree.
+# `ruff check` was passing 26 findings on 2026-07-28 because nothing
+# declared the tool or its settings: an unused import and one dead local
+# survived every review.
+#
+# The line length is 100, not the default 88. The code was written to it,
+# and a reflow would rewrite comments that record measurements.
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+# State the rules, never inherit the default set. Measured 2026-07-28:
+# ruff 0.15.12 reported 0 findings here and ruff 0.16.0 reported 219 on
+# the same tree, because 0.16 widened its own defaults. A lint that
+# depends on which ruff is installed cannot gate anything.
+#
+# `E`/`F`/`W` is pyflakes plus pycodestyle: dead code, unused imports and
+# undefined names. Those are the findings that mark a real mistake rather
+# than a style preference.
+#
+# The wider modern set (`UP`, `I`, `SIM`, `RET`, `FURB`, …) reports 219
+# here, 105 of them `UP017` alone. Adopting one of those families is a
+# deliberate sweep, not a side effect of upgrading a tool.
+select = ["E", "F", "W"]
+# `E501` is off: a comment here often quotes a provider's own error
+# message verbatim, and wrapping one changes the string a reader greps
+# for.
+ignore = ["E501"]

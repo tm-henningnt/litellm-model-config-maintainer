@@ -1,0 +1,162 @@
+# The three proxies and their database.
+#
+# The maintainer stays on macOS. It needs codexbar, which is a Mach-O
+# binary, so Headroom cannot be measured from a Linux container. The
+# maintainer writes the Generated Config to a directory this file
+# mounts, and the proxy reloads on the write.
+#
+# Start it:
+#
+#   docker compose --env-file ~/.config/litellm/db.env \
+#     -f docker/compose.yaml up -d
+#
+# The --env-file supplies POSTGRES_PASSWORD, which two services need at
+# parse time. Every other secret is injected per service and never
+# appears here.
+#
+# WARNING: stop the host proxies first. They hold ports 4000 and 4011.
+
+name: litellm
+
+volumes:
+  # Created outside compose and already carries the migrated schema.
+  # Declared external so `compose down -v` cannot drop it.
+  litellm-db-data:
+    external: true
+
+networks:
+  default:
+    name: litellm
+
+services:
+  db:
+    image: postgres:17
+    container_name: litellm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_DB: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?read it from ~/.config/litellm/db.env with --env-file}
+    volumes:
+      - litellm-db-data:/var/lib/postgresql/data
+    ports:
+      # Loopback only. The maintainer and psql reach it here.
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm -d litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ChatGPT seat 1. The chatgpt/ provider runs its own OAuth device-code
+  # login and refreshes its own tokens, so the auth directory must be
+  # writable. It does not depend on the macOS ChatGPT app.
+  chatgpt-seat-1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: litellm-patched:1.97.0
+    container_name: chatgpt-seat-1
+    restart: unless-stopped
+    env_file:
+      - ${HOME}/.config/litellm/seat-1.env
+    environment:
+      CHATGPT_TOKEN_DIR: /seat/auth
+      CHATGPT_AUTH_FILE: auth.json
+      # chatgpt_role_fix is imported by name from the worker config.
+      PYTHONPATH: /config
+    volumes:
+      - ${HOME}/.config/litellm/chatgpt-seat-1/auth:/seat/auth
+      - ${HOME}/.config/litellm/chatgpt-worker.yaml:/config/chatgpt-worker.yaml:ro
+      - ${HOME}/.config/litellm/chatgpt_role_fix.py:/config/chatgpt_role_fix.py:ro
+    command:
+      - "--config"
+      - "/config/chatgpt-worker.yaml"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "4011"
+    networks:
+      default:
+        aliases:
+          # One name that resolves from BOTH sides. Inside this network
+          # Docker's DNS serves the alias. On the Mac, OrbStack serves
+          # the same name under .orb.local. The maintainer's prober
+          # calls a Declared Offering's api_base directly from the Mac
+          # (prober.py, `base_url`), so a container-only name would
+          # fail every ChatGPT probe.
+          - chatgpt-seat-1.orb.local
+
+  # ChatGPT seat 2. Policy comments out every seat 2 entry, so this
+  # service is off by default. Start it with:
+  #   docker compose --profile seat-2 ... up -d
+  chatgpt-seat-2:
+    profiles: ["seat-2"]
+    image: litellm-patched:1.97.0
+    container_name: chatgpt-seat-2
+    restart: unless-stopped
+    env_file:
+      - ${HOME}/.config/litellm/seat-2.env
+    environment:
+      CHATGPT_TOKEN_DIR: /seat/auth
+      CHATGPT_AUTH_FILE: auth.json
+      PYTHONPATH: /config
+    volumes:
+      - ${HOME}/.config/litellm/chatgpt-seat-2/auth:/seat/auth
+      - ${HOME}/.config/litellm/chatgpt-worker.yaml:/config/chatgpt-worker.yaml:ro
+      - ${HOME}/.config/litellm/chatgpt_role_fix.py:/config/chatgpt_role_fix.py:ro
+    command:
+      - "--config"
+      - "/config/chatgpt-worker.yaml"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "4012"
+    networks:
+      default:
+        aliases:
+          - chatgpt-seat-2.orb.local
+
+  proxy:
+    image: litellm-patched:1.97.0
+    container_name: litellm-proxy
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      # Every provider credential, and LITELLM_MASTER_KEY.
+      - ${HOME}/.config/litellm/.env
+    environment:
+      # These four override what .env sets, because .env states host
+      # paths and a host database address. `environment` wins over
+      # `env_file` in compose.
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD:?}@db:5432/litellm
+      PYTHONPATH: /config
+      LITELLM_MAINTAINER_HOME: /maintainer-home
+      LITELLM_MAINTAINER_PACKAGE_ROOT: /maintainer-src
+      # Names the file the Journal callback redacts against. Without it
+      # the callback redacts on variable-name markers alone.
+      LITELLM_MAINTAINER_ENV: /config/.env
+    volumes:
+      # The Generated Config and the provider modules the maintainer
+      # deploys beside it. Read-only: the proxy only reads them.
+      - ${HOME}/.config/litellm:/config:ro
+      # The Journal. The failure callback appends here, so it is
+      # writable, and the maintainer on the Mac reads the same files.
+      - ${HOME}/.config/litellm-maintainer:/maintainer-home
+      # journal_failure_callback imports litellm_maintainer from here.
+      - ..:/maintainer-src:ro
+    command:
+      - "--config"
+      - "/config/config.yaml"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "4000"
+      # The maintainer restarts the proxy by writing the config and
+      # letting this watcher notice (ADR 0014). Without --reload every
+      # deploy would report success and change nothing.
+      - "--reload"
+    ports:
+      - "127.0.0.1:4000:4000"

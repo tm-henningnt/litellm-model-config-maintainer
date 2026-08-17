@@ -1,0 +1,16 @@
+{
+  "provider": "opencode-go",
+  "condition": "gateway_error",
+  "http_status": 500,
+  "body": {
+    "type": "error",
+    "error": {
+      "type": "error",
+      "message": "Internal server error"
+    }
+  },
+  "provenance": "captured live from the provider on 2026-07-25",
+  "expected_outcome": "self_healing",
+  "expected_reset_at": null,
+  "note": "HTTP 500 with an anthropic-shaped error envelope. The audit saw a Cloudflare 502 at the same endpoint. Both are gateway errors."
+}
