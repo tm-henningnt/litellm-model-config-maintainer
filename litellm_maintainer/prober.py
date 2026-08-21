@@ -38,7 +38,7 @@ from litellm_maintainer.classify import (
 from litellm_maintainer.feed import Feed, Offering
 from litellm_maintainer.plan import _passes_baseline, _passes_plan_edition
 from litellm_maintainer.policy import DeclaredOffering, Pacing, Policy
-from litellm_maintainer.sse import read_stream
+from litellm_maintainer.sse import StreamedRead, read_stream
 from litellm_maintainer.reduce import HealthState, OfferingHealth
 
 OfferingKey = str
@@ -53,6 +53,16 @@ OfferingKey = str
 PROBE_MESSAGES: tuple[dict[str, str], ...] = (
     {"role": "user", "content": "ping"},
 )
+# Keep this small, and never read a Probe as proof that a NON-streaming
+# call works. Measured 2026-08-21: Cline answers HTTP 500 "empty
+# response content" whenever a non-streamed completion carries empty
+# `content`, and a reasoning model empties it by spending a small budget
+# on reasoning. Four ids failed at `max_tokens=8`-scale budgets and
+# answered at 400. Every Probe streams, so a Probe never meets the
+# condition. Raising the number here would buy no measurement and would
+# spend tokens on every sweep; the asymmetry belongs in the docs, where
+# a client author reads it (docs/gotchas.md, "One provider fails a
+# non-streaming call that streams").
 PROBE_MAX_TOKENS = 8
 
 # A rate-limit-shaped failure that measured nothing (classify returns
@@ -677,10 +687,33 @@ def live_transport(
     # not when it carried text. A reasoning model on this small token
     # budget spends it on reasoning and emits `content: ""`, and that is
     # a working route. Measured on Groq and Gemini.
-    body = (
-        {"choices": [{"message": {"content": read.content}}]} if read.chunks_seen else {}
-    )
+    #
+    # A stream that carried no chunk but did carry an error frame states
+    # its own condition. Hand that frame to `classify` rather than an
+    # empty body, which reads as `malformed_response`. See
+    # `StreamedRead.error`.
+    body = _streamed_body(read)
     return TransportResponse(http_status=response.status_code, body=body, transport=None)
+
+
+
+def _streamed_body(read: StreamedRead) -> dict[str, Any]:
+    """Build the body `classify` reads from one streamed response.
+
+    A chunk means the route answered. No chunk and an error frame means
+    the provider stated a failure inside a 2xx stream, so report that
+    error. No chunk and no error frame reports an empty body, which
+    `classify` reads as a malformed response.
+
+    The smoke check builds its body the same way, on purpose: the two
+    live callers must agree, because a disagreement between them is how
+    a false failure survives.
+    """
+    if read.chunks_seen:
+        return {"choices": [{"message": {"content": read.content}}]}
+    if read.error is not None:
+        return {"error": read.error}
+    return {}
 
 
 def build_probe_payload(target: ProbeTarget) -> dict[str, Any]:

@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "providers"))
 
 from cline_provider import (  # noqa: E402
     _build_payload,
+    _raise_if_error_frame,
     _iter_sse_payloads,
     _stream_chunk,
     unwrap_or_raise,
@@ -219,3 +220,42 @@ def test_the_payload_requests_streaming_only_when_asked():
 def test_a_caller_supplied_stream_flag_never_overrides_the_payload():
     """`optional_params` can carry litellm's own stream flag; ignore it."""
     assert _build_payload("m", [], {"stream": True})["stream"] is False
+
+
+# Measured 2026-08-21. Cline states an upstream rate limit inside a 2xx
+# stream, so a handler that reads `choices` alone yields empty text and
+# the caller receives an empty answer with no error.
+STREAM_ERROR_FRAME = {
+    "error": {
+        "code": "stream_initialization_failed",
+        "message": (
+            "Failed to create stream: inference request failed: failed to "
+            "generate stream from OpenRouter: failed to invoke model "
+            "'z-ai/glm-5.2:free' with streaming: request failed with status "
+            "429: z-ai/glm-5.2:free is temporarily rate-limited upstream"
+        ),
+    }
+}
+
+
+def test_error_frame_in_a_stream_raises_with_the_provider_message():
+    with pytest.raises(CustomLLMError) as raised:
+        _raise_if_error_frame(STREAM_ERROR_FRAME)
+    assert "rate-limited upstream" in raised.value.message
+    # 502: the stream broke upstream, under a 2xx status.
+    assert raised.value.status_code == 502
+
+
+def test_error_frame_holding_a_string_raises():
+    with pytest.raises(CustomLLMError) as raised:
+        _raise_if_error_frame({"error": "model not found", "success": False})
+    assert "model not found" in raised.value.message
+
+
+def test_success_false_with_no_error_raises():
+    with pytest.raises(CustomLLMError):
+        _raise_if_error_frame({"success": False})
+
+
+def test_an_ordinary_chunk_passes_the_guard():
+    _raise_if_error_frame({"choices": [{"delta": {"content": "OK"}}]})

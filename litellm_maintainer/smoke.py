@@ -46,6 +46,7 @@ from typing import Any, Callable
 from litellm_maintainer.classify import ANSWERED, INCONCLUSIVE, Outcome, classify
 from litellm_maintainer.feed import Feed, Offering
 from litellm_maintainer.naming import alias_for
+from litellm_maintainer.prober import _streamed_body
 from litellm_maintainer.sse import read_stream
 from litellm_maintainer.policy import Policy
 from litellm_maintainer.prober import (
@@ -503,7 +504,10 @@ def live_smoke_transport(
     # right and the credential worked. A reasoning model on a small
     # token budget spends it all on reasoning and emits empty content,
     # and that is a working route.
-    body: dict[str, Any] = (
-        {"choices": [{"message": {"content": read.content}}]} if read.chunks_seen else {}
-    )
+    #
+    # A stream with no chunk but an error frame states its own
+    # condition. `_streamed_body` hands that frame to `classify`; the
+    # Prober builds its body with the same function, because the two
+    # must agree.
+    body: dict[str, Any] = _streamed_body(read)
     return TransportResponse(http_status=response.status_code, body=body, transport=None)

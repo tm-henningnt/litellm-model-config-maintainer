@@ -465,6 +465,70 @@ and confirm a model with one call. This is why a Declared Offering is the
 operator's statement and never a discovery: nothing here polls that
 endpoint to decide what the proxy serves.
 
+## One provider states a failure inside a 2xx stream
+
+Read the frames, not the status. Measured 2026-08-21: Cline answers
+HTTP 200, sends one frame carrying
+`{"error":{"code":"stream_initialization_failed", ...}}`, then `[DONE]`.
+The frame holds no `choices`. A reader that counts chunks sees an empty
+stream and reports a body with no completion, so `classify` calls it
+`malformed_response` and asks the operator to look at a five-second
+rate limit.
+
+`read_stream` now keeps the first error frame in `StreamedRead.error`.
+Both live callers build their body with `prober._streamed_body`, which
+passes that frame to `classify` when no chunk arrived. The provider
+handler raises on the same frame, because the alternative is an empty
+answer with no error, and nothing retries an empty answer.
+
+## One provider fails a non-streaming call that streams
+
+Test both ways before you trust a verdict. Cline answers HTTP 500
+"empty response content" when a non-streamed completion carries empty
+`content`. A reasoning model empties it by spending a small `max_tokens`
+budget on reasoning.
+
+Measured 2026-08-21 on `liquid/lfm-2.5-2.6b:free`,
+`stepfun/step-3.7-flash`, `cohere/north-mini-code:free` and
+`poolside/laguna-xs-2.1:free`. All four failed with `max_tokens=16`.
+All four answered with `max_tokens=400`, each after 132 to 617
+characters of reasoning. All four stream correctly at `max_tokens=16`.
+
+Every Probe and the smoke check stream, so neither meets this
+condition. A client that does not stream, with a small budget, meets it
+every call.
+
+## Cline resells OpenRouter, and rewrites the upstream condition
+
+Read a Cline failure as OpenRouter's condition in Cline's words. The
+catalogue at `/api/v1/ai/cline/models` holds 419 models in OpenRouter's
+own schema, and the errors name the origin: "failed to invoke model
+'z-ai/glm-5.2:free' from Openrouter".
+
+Four rewrites, measured 2026-08-21:
+
+- An upstream 429 streaming becomes HTTP 200 plus an error frame.
+- An upstream 429 non-streaming becomes HTTP 500, `error` a plain string.
+- Empty `content` non-streaming becomes HTTP 500 "empty response content".
+- Cline's own `cline-free/*` namespace answers 403 "only available via
+  Cline product surfaces", with `error` an OBJECT and no `success` key.
+
+The catalogue also lists ids the inference path rejects.
+`stealth/ox-alpha` answered 404 "model not found" through Cline while
+OpenRouter served the same id 200.
+
+## One measurement does not withhold a provider's whole free tier
+
+Withhold the Offering you measured, and no other. A 403 on
+`cline-free/glm-5.2` was recorded on 2026-08-03, and its one-line reason
+was then carried on 13 Cline Offerings. Measured 2026-08-21 by calling
+all 13 directly: 9 answered, 2 refused with that 403, and 1 relayed
+OpenRouter's own refusal.
+
+The error compounds, because `probe` skips a withheld Offering. The
+reason blocks the measurement that would test the reason, so a wrong
+line never expires. Nine free models sat unreachable for 18 days.
+
 ## A refusal can state a limit the model list omits
 
 A provider that publishes no window often names it in an error. Ask for an

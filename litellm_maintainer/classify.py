@@ -192,7 +192,19 @@ _GATEWAY_WORDS = (
     "service unavailable",
     "temporarily unavailable",
 )
-_RATE_LIMIT_WORDS = ("rate limit", "request limit", "too many requests")
+# Match the hyphen and the underscore as well as the space. Measured
+# 2026-08-21: Cline relays OpenRouter's "is temporarily rate-limited
+# upstream", and "rate limit" does not match "rate-limited". One hyphen
+# sent a five-second rate limit to `needs_operator` as
+# `unrecognized_failure`, which Excluded the Offering and asked a human
+# to read a message that states its own retry delay.
+_RATE_LIMIT_WORDS = (
+    "rate limit",
+    "rate-limit",
+    "rate_limit",
+    "request limit",
+    "too many requests",
+)
 
 # HTTP statuses that decide the bucket when the body states no message.
 # A 502 with an HTML body, which the audit saw from Cloudflare, reads

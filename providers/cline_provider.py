@@ -72,6 +72,28 @@ def _stream_chunk(parsed: dict) -> dict[str, Any]:
     }
 
 
+
+def _raise_if_error_frame(parsed: dict) -> None:
+    """Raise when one streamed frame states a failure.
+
+    Cline states a failure INSIDE a 2xx stream. Measured 2026-08-21: an
+    upstream rate limit answers HTTP 200, then one frame carrying
+    `{"error": {"code": "stream_initialization_failed", ...}}`, then
+    `[DONE]`. The frame holds no `choices`, so a handler that reads
+    `choices` alone yields empty text and the caller receives an empty
+    answer with no error at all. A silent empty answer is worse than a
+    failure, because nothing retries it.
+
+    Report 502 for an error frame under a 2xx status: the stream broke
+    upstream, and that is not the caller's fault.
+    """
+    error = parsed.get("error")
+    if error is None and parsed.get("success") is not False:
+        return
+    message = _error_message(error) if error is not None else "Cline reported success: false"
+    raise CustomLLMError(status_code=502, message=message)
+
+
 def _iter_sse_payloads(lines: Any) -> Any:
     """Yield each parsed `data:` payload from an SSE body, in order.
 
@@ -306,6 +328,7 @@ class ClineLLM(CustomLLM):
                     message=_shorten(response.text),
                 )
             for parsed in _iter_sse_payloads(response.iter_lines()):
+                _raise_if_error_frame(parsed)
                 yield _stream_chunk(parsed)
 
     async def astreaming(
@@ -349,6 +372,7 @@ class ClineLLM(CustomLLM):
                     )
                 async for line in response.aiter_lines():
                     for parsed in _iter_sse_payloads([line]):
+                        _raise_if_error_frame(parsed)
                         yield _stream_chunk(parsed)
 
 

@@ -32,10 +32,21 @@ class StreamedRead:
     an answer: a reasoning model on a small token budget spends it on
     `reasoning_content` and emits `content: ""`. That is a working
     route. `content` is the assistant text, for the report only.
+
+    `error` holds the first streamed `error` value, or `None`. A
+    provider can state a failure INSIDE a 2xx stream: measured
+    2026-08-21, Cline answers HTTP 200 and one frame carrying
+    `{"error": {"code": "stream_initialization_failed", ...}}` when its
+    upstream rate-limits the model. A caller that reads `chunks_seen`
+    alone sees an empty stream, reports a body with no `choices`, and
+    `classify` calls that a malformed response -- `needs_operator` for a
+    five-second rate limit. Pass this value on instead, so `classify`
+    reads the provider's own message.
     """
 
     content: str
     chunks_seen: int
+    error: object | None = None
 
 
 def read_stream(raw_text: str) -> StreamedRead:
@@ -53,6 +64,7 @@ def read_stream(raw_text: str) -> StreamedRead:
     """
     chunks: list[str] = []
     seen = 0
+    error: object | None = None
     for raw_line in raw_text.splitlines():
         line = raw_line.strip()
         if not line or line.startswith(":"):
@@ -68,6 +80,13 @@ def read_stream(raw_text: str) -> StreamedRead:
             continue
         if not isinstance(parsed, dict):
             continue
+        if error is None and parsed.get("error") is not None:
+            # Keep the FIRST error frame, and keep reading. A stream can
+            # carry an error frame and chunks both, and a chunk still
+            # proves the route works, so this never decides the outcome
+            # on its own -- the caller reads it only when no chunk
+            # arrived.
+            error = parsed["error"]
         choices = parsed.get("choices")
         if not isinstance(choices, list) or not choices:
             continue
@@ -81,4 +100,4 @@ def read_stream(raw_text: str) -> StreamedRead:
         content = delta.get("content")
         if content:
             chunks.append(str(content))
-    return StreamedRead(content="".join(chunks), chunks_seen=seen)
+    return StreamedRead(content="".join(chunks), chunks_seen=seen, error=error)
