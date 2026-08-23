@@ -55,7 +55,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: litellm-patched:1.97.0
+    image: litellm-patched:1.98.0
     container_name: chatgpt-seat-1
     restart: unless-stopped
     env_file:
@@ -92,7 +92,7 @@ services:
   #   docker compose --profile seat-2 ... up -d
   chatgpt-seat-2:
     profiles: ["seat-2"]
-    image: litellm-patched:1.97.0
+    image: litellm-patched:1.98.0
     container_name: chatgpt-seat-2
     restart: unless-stopped
     env_file:
@@ -118,7 +118,7 @@ services:
           - chatgpt-seat-2.orb.local
 
   proxy:
-    image: litellm-patched:1.97.0
+    image: litellm-patched:1.98.0
     container_name: litellm-proxy
     restart: unless-stopped
     depends_on:

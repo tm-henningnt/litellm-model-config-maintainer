@@ -2,7 +2,7 @@
 #
 # Build from the repository root, not from this directory:
 #
-#   docker build -f docker/Dockerfile -t litellm-patched:1.97.0 .
+#   docker build -f docker/Dockerfile -t litellm-patched:1.98.0 .
 #
 # The patches are applied at build time and verified in the same layer.
 # A build fails when litellm moves the code the patch anchors on, so an
@@ -14,7 +14,7 @@
 # compose file mounts that directory. So a provider change reaches the
 # proxy without a rebuild, exactly as it does on the host.
 
-ARG LITELLM_VERSION=1.97.0
+ARG LITELLM_VERSION=1.98.0
 FROM docker.litellm.ai/berriai/litellm:${LITELLM_VERSION}
 
 USER root
