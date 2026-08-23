@@ -100,6 +100,7 @@ def _ladder_for(
     notes: list[str] = []
     skipped_capability = 0
     skipped_not_recommended = 0
+    skipped_cost_basis = 0
 
     for row in guidance.rows:
         if not _row_qualifies(row, rule):
@@ -110,6 +111,11 @@ def _ladder_for(
                 # The Alias is not in this run's Generated Config. A Role
                 # naming it would produce a Model Group litellm cannot
                 # resolve, so it is left out rather than written.
+                continue
+            if rule.cost_bases and route.cost_basis not in rule.cost_bases:
+                # A hard filter, unlike `prefer`. A Role that must never
+                # bill drops the Route rather than ranking it lower.
+                skipped_cost_basis += 1
                 continue
             if not route.recommendable:
                 skipped_not_recommended += 1
@@ -125,6 +131,11 @@ def _ladder_for(
         notes.append(
             f"{skipped_capability} model(s) left out: the Feed does not state "
             f"{', '.join(sorted(rule.require_capabilities))}"
+        )
+    if skipped_cost_basis:
+        notes.append(
+            f"{skipped_cost_basis} Route(s) left out: not billed as "
+            f"{', '.join(sorted(rule.cost_bases))}"
         )
     if skipped_not_recommended:
         notes.append(

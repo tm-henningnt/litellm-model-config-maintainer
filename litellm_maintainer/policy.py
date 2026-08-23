@@ -85,6 +85,7 @@ REQUIRED_TOP_LEVEL_KEYS = TOP_LEVEL_KEYS - {
 # The one key set a `roles.<role_name>` entry may carry. See `RoleRule`.
 ROLE_RULE_KEYS = {
     "axis",
+    "cost_bases",
     "limit",
     "min_context",
     "prefer",
@@ -127,6 +128,9 @@ FLAT_RATE = "flat_rate"
 METERED = "metered"
 PASSTHROUGH = "passthrough"
 UNKNOWN_BASIS = "unknown"
+
+# Every cost basis a Route can carry. `roles.cost_bases` filters on these.
+COST_BASES = frozenset({FREE, FLAT_RATE, METERED, PASSTHROUGH, UNKNOWN_BASIS})
 VALID_COST_BASES = {FREE, FLAT_RATE, METERED, PASSTHROUGH, UNKNOWN_BASIS}
 NAMING_KEYS = {"provider_labels", "alias_overrides", "alias_prefix", "alias_separator"}
 PROXY_SETTINGS_KEYS = {"general_settings", "litellm_settings"}
@@ -851,6 +855,17 @@ class RoleRule:
     fact rather than a hand-picked list that goes stale: a model that
     gains vision joins the ladder on the next run, and one that is
     withdrawn leaves it.
+
+    `cost_bases` admits only a Route billed on one of the named bases.
+    This is a FILTER, and `prefer` is not: `prefer` re-sorts the ladder
+    so a preferred basis comes first and a metered Route still sits
+    below it as a fallback. A Role meant to spend a free tier and
+    nothing else needs the filter, or the day the free routes are all
+    drained it bills silently.
+
+    State `cost_bases` when a Role must never bill. State `prefer` when
+    it should reach for the cheap thing first and fall back rather than
+    fail.
     """
 
     axis: str
@@ -858,6 +873,7 @@ class RoleRule:
     min_context: int | None = None
     prefer: str | None = None
     require_capabilities: tuple[str, ...] = ()
+    cost_bases: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -1429,12 +1445,25 @@ def _parse_roles(raw: Any) -> dict[str, RoleRule]:
                 f"{prefix}.require_capabilities must be a list of non-empty strings"
             )
 
+        bases = entry.get("cost_bases") or ()
+        if not isinstance(bases, (list, tuple)) or not all(
+            isinstance(b, str) for b in bases
+        ):
+            raise PolicyError(f"{prefix}.cost_bases must be a list of strings")
+        for basis in bases:
+            if basis not in COST_BASES:
+                raise PolicyError(
+                    f"{prefix}.cost_bases names {basis!r}. Use one of "
+                    f"{sorted(COST_BASES)}"
+                )
+
         roles[role_name] = RoleRule(
             axis=axis,
             limit=limit,
             min_context=min_context,
             prefer=prefer,
             require_capabilities=tuple(required),
+            cost_bases=tuple(bases),
         )
     return roles
 

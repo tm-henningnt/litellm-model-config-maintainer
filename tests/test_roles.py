@@ -232,3 +232,41 @@ def test_an_unknown_role_key_is_refused_on_load():
 def test_a_role_block_is_optional():
     policy = parse_policy(_policy_raw())
     assert policy.roles == {}
+
+
+# ---------------------------------------------------------------------------
+# `cost_bases` filters. `prefer` does not.
+
+
+def test_cost_bases_drops_a_route_billed_on_another_basis():
+    """A Role meant to spend a free tier and nothing else must not bill
+    on the day every free Route is drained. It fails instead.
+    """
+    free = _offering_raw(
+        id="openrouter:free-one", provider_id="openrouter",
+        canonical_model_id="v/free-one", pricing_kind="free", coding_score=40.0,
+    )
+    paid = _offering_raw(
+        id="openrouter:paid-one", provider_id="openrouter",
+        canonical_model_id="v/paid-one", pricing_kind="paid", coding_score=99.0,
+    )
+
+    _, _, role_result = _setup(
+        roles={"role-free": {"axis": "coding", "cost_bases": ["free"]}},
+        offerings=[free, paid],
+    )
+    members = _members(role_result, "role-free")
+    # `paid-one` scores far higher and is still dropped.
+    assert [m["model_info"]["role_member_of"] for m in members] == [
+        "claude-openrouter-free-one"
+    ]
+    ladder = next(x for x in role_result.ladders if x.role_name == "role-free")
+    assert any("not billed as free" in note for note in ladder.notes)
+
+
+def test_an_unknown_cost_basis_is_refused_on_load():
+    with pytest.raises(PolicyError) as excinfo:
+        parse_policy(
+            _policy_raw(roles={"role-x": {"axis": "coding", "cost_bases": ["cheap"]}})
+        )
+    assert "cheap" in str(excinfo.value)
