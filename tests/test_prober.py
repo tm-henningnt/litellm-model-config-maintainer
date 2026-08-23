@@ -22,6 +22,8 @@ from litellm_maintainer.feed import load_feed, parse_feed
 from litellm_maintainer.policy import DeclaredOffering, Pacing, load_policy, parse_policy
 from litellm_maintainer.sse import read_stream
 from litellm_maintainer.prober import (
+    PROBE_MAX_TOKENS,
+    PROBE_REASONING_MAX_TOKENS,
     build_probe_payload,
     ProbeTarget,
     TransportResponse,
@@ -963,3 +965,68 @@ def test_a_per_model_declared_offering_joins_no_pool():
     )
 
     assert pool_siblings(feed=feed, policy=policy) == {}
+
+
+# ---------------------------------------------------------------------------
+# Retry once at a wider budget on a content-free stream.
+
+
+def test_a_content_free_stream_is_retried_once_at_the_reasoning_budget():
+    """A reasoning model spends `PROBE_MAX_TOKENS` on reasoning and ends
+    the stream with no content. That reads as `malformed_response`, the
+    same as a broken model. The retry sends a wider budget and tells the
+    two apart. Measured on `opencode-zen:muse-spark-1.2-contributor-free`.
+    """
+    empty = {"usage": {"completion_tokens": 64}}
+    answered_body = {"choices": [{"message": {"role": "assistant", "content": "pong"}}]}
+
+    responses = [
+        TransportResponse(http_status=200, body=empty),
+        TransportResponse(http_status=200, body=answered_body),
+    ]
+    budgets: list[int | None] = []
+
+    def fake_transport(target: ProbeTarget) -> TransportResponse:
+        budgets.append(target.max_tokens)
+        return responses[len(budgets) - 1]
+
+    sleeps: list[float] = []
+
+    outcome = probe_offering(
+        ProbeTarget(key="opencode-zen:model-a", provider_id="opencode-zen"),
+        transport=fake_transport,
+        now=lambda: NOW,
+        sleep=lambda seconds: sleeps.append(seconds),
+    )
+
+    assert budgets == [None, PROBE_REASONING_MAX_TOKENS]
+    assert sleeps == []  # nothing was rate limited, so nothing waits
+    assert outcome.bucket == ANSWERED
+
+
+def test_a_model_that_answers_nothing_at_either_budget_still_needs_the_operator():
+    empty = {"usage": {"completion_tokens": 0}}
+    budgets: list[int | None] = []
+
+    def fake_transport(target: ProbeTarget) -> TransportResponse:
+        budgets.append(target.max_tokens)
+        return TransportResponse(http_status=200, body=empty)
+
+    outcome = probe_offering(
+        ProbeTarget(key="opencode-zen:model-a", provider_id="opencode-zen"),
+        transport=fake_transport,
+        now=lambda: NOW,
+        sleep=lambda seconds: None,
+    )
+
+    assert budgets == [None, PROBE_REASONING_MAX_TOKENS]  # retried once, and only once
+    assert outcome.bucket == "needs_operator"
+    assert outcome.reason == "malformed_response"
+
+
+def test_the_probe_payload_sends_the_targets_budget_when_it_states_one():
+    target = _target()
+    assert build_probe_payload(target)["max_tokens"] == PROBE_MAX_TOKENS
+
+    wider = replace(target, max_tokens=PROBE_REASONING_MAX_TOKENS)
+    assert build_probe_payload(wider)["max_tokens"] == PROBE_REASONING_MAX_TOKENS

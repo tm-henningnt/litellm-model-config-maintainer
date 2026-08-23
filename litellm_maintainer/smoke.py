@@ -72,7 +72,10 @@ OfferingKey = str
 # "Claude 5 models reject temperature=0"). Omitting the key avoids the
 # trap for every model, not just Claude 5.
 SMOKE_MESSAGES: tuple[dict[str, str], ...] = ({"role": "user", "content": "ping"},)
-SMOKE_MAX_TOKENS = 8
+# 64, not 8. A provider refuses a budget below 16 for a reasoning
+# model and answers HTTP 400. Read the note on
+# `prober.PROBE_MAX_TOKENS`. The two numbers must agree.
+SMOKE_MAX_TOKENS = 64
 
 _DECLARED_RULE_PREFIX = "declared"
 

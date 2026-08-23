@@ -24,13 +24,15 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, Callable
 
 from litellm_maintainer.classify import (
     ANSWERED,
     INCONCLUSIVE,
+    NEEDS_OPERATOR,
+    REASON_MALFORMED_RESPONSE,
     REASON_RATE_LIMITED,
     Outcome,
     classify,
@@ -53,17 +55,41 @@ OfferingKey = str
 PROBE_MESSAGES: tuple[dict[str, str], ...] = (
     {"role": "user", "content": "ping"},
 )
-# Keep this small, and never read a Probe as proof that a NON-streaming
-# call works. Measured 2026-08-21: Cline answers HTTP 500 "empty
-# response content" whenever a non-streamed completion carries empty
-# `content`, and a reasoning model empties it by spending a small budget
-# on reasoning. Four ids failed at `max_tokens=8`-scale budgets and
-# answered at 400. Every Probe streams, so a Probe never meets the
-# condition. Raising the number here would buy no measurement and would
-# spend tokens on every sweep; the asymmetry belongs in the docs, where
-# a client author reads it (docs/gotchas.md, "One provider fails a
+# A budget below 16 is not a small request. It is a rejected one.
+# Measured 2026-08-21 on `opencode-zen:muse-spark-1.2-contributor-free`:
+# the provider answers HTTP 400 at `max_tokens=8` and answers 200 at 16,
+# for the same streamed request. The 400 body carries no `error` key, so
+# `classify` reads `unrecognized_failure` and Excludes a model that
+# works. A reasoning model spends its budget on reasoning before it
+# emits one token of content, and a provider that knows this refuses the
+# call rather than return nothing.
+#
+# The ceiling is not a cost. A model that answers "ok" spends two
+# tokens whatever this number says. Only a reasoning model spends the
+# ceiling, and that is the case this number exists to measure.
+#
+# Never read a Probe as proof that a NON-streaming call works. Cline
+# answers HTTP 500 "empty response content" whenever a non-streamed
+# completion carries empty `content`. Every Probe streams, so a Probe
+# never meets that condition; the asymmetry belongs in the docs, where a
+# client author reads it (docs/gotchas.md, "One provider fails a
 # non-streaming call that streams").
-PROBE_MAX_TOKENS = 8
+#
+# `smoke.SMOKE_MAX_TOKENS` states the same number. The two must agree,
+# because a disagreement between them is how a false failure survives.
+PROBE_MAX_TOKENS = 64
+
+# The budget one retry sends after a stream carried no content.
+# Measured 2026-08-21 on `opencode-zen:muse-spark-1.2-contributor-free`:
+# the model spends 342 tokens on reasoning before it emits the first
+# token of an answer. At 64 the stream is well-formed, ends, and carries
+# nothing, which `classify` reads as `malformed_response` and which
+# Excludes a working model.
+#
+# This budget is spent on a retry, never on a first attempt. A model
+# that answers inside `PROBE_MAX_TOKENS` never reaches it, so a wide
+# ceiling here costs nothing on a normal sweep.
+PROBE_REASONING_MAX_TOKENS = 512
 
 # A rate-limit-shaped failure that measured nothing (classify returns
 # `inconclusive` with `reason="rate_limited"`) is retried once, after
@@ -107,6 +133,10 @@ class ProbeTarget:
     provider_id: str
     offering: Offering | None = None
     declared: DeclaredOffering | None = None
+    # The output budget one Probe of this target sends. `None` means
+    # `PROBE_MAX_TOKENS`. `probe_offering` sets it, and only to retry a
+    # reasoning model that emitted no content inside the first budget.
+    max_tokens: int | None = None
 
     def request_model(self) -> str:
         """Return the model identifier a transport would call.
@@ -408,12 +438,23 @@ def probe_offering(
 ) -> Outcome:
     """Call one Offering once, and return what it means.
 
+    Two failures are retried once. Every other outcome, including a
+    genuine `self_healing` rate limit that states a reset time, stands on
+    the first attempt.
+
     A rate-limit-shaped failure — `classify` returns `inconclusive` with
-    `reason="rate_limited"` — is retried once, after `retry_backoff_seconds`,
-    before it counts. Whatever the second attempt classifies to is the
-    final `Outcome`, even if it is `inconclusive` again. Every other
-    outcome, including a genuine `self_healing` rate limit that states a
-    reset time, stands on the first attempt.
+    `reason="rate_limited"` — is retried after `retry_backoff_seconds`.
+
+    A content-free stream — `classify` returns `needs_operator` with
+    `reason="malformed_response"` — is retried immediately, with
+    `PROBE_REASONING_MAX_TOKENS` instead of `PROBE_MAX_TOKENS`. A
+    reasoning model spends its whole budget on reasoning and ends the
+    stream with no content, which reads exactly like a broken model. The
+    retry tells the two apart: a broken model answers the same way at
+    both budgets. There is no backoff, because nothing was rate limited.
+
+    Whatever the second attempt classifies to is the final `Outcome`,
+    even if it fails again.
     """
     response = transport(offering)
     at = now()
@@ -424,9 +465,18 @@ def probe_offering(
         transport=response.transport,
         now=at,
     )
+    retry_target: ProbeTarget | None = None
     if outcome.bucket == INCONCLUSIVE and outcome.reason == REASON_RATE_LIMITED:
         sleep(retry_backoff_seconds)
-        response = transport(offering)
+        retry_target = offering
+    elif (
+        outcome.bucket == NEEDS_OPERATOR
+        and outcome.reason == REASON_MALFORMED_RESPONSE
+        and offering.max_tokens is None
+    ):
+        retry_target = replace(offering, max_tokens=PROBE_REASONING_MAX_TOKENS)
+    if retry_target is not None:
+        response = transport(retry_target)
         at = now()
         outcome = classify(
             provider=offering.provider_id,
@@ -736,7 +786,7 @@ def build_probe_payload(target: ProbeTarget) -> dict[str, Any]:
     return {
         "model": target.request_model(),
         "messages": list(PROBE_MESSAGES),
-        "max_tokens": PROBE_MAX_TOKENS,
+        "max_tokens": target.max_tokens or PROBE_MAX_TOKENS,
         "stream": True,
     }
 
