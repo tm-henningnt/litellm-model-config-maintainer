@@ -239,6 +239,13 @@ def envelope_unwrapping(offering: Offering, provider: Provider | None) -> dict[s
 TRANSLATION_RULES: dict[str, TranslationRule] = {
     "opencode-go": generic_openai_compatible,
     "opencode-zen": generic_openai_compatible,
+    # Venice speaks the OpenAI chat-completions protocol under its own
+    # base URL and authenticates with a Bearer token, so the generic
+    # rule fits with nothing provider-specific. Verified 2026-08-23:
+    # `POST https://api.venice.ai/api/v1/chat/completions` with
+    # `stream: true` answers an ordinary SSE body, and the Feed names
+    # `VENICE_AI_API_KEY` as the provider's credential hint.
+    "venice": generic_openai_compatible,
     "cline": generic_openai_compatible,
     "cline-pass": generic_openai_compatible,
     "gemini": gemini_native,

@@ -827,3 +827,14 @@ def test_an_empty_response_envelope_key_is_rejected():
         parse_policy(
             _policy_with_providers({"cline": {"mode": "all", "response_envelope_key": ""}})
         )
+
+
+def test_venice_translates_through_the_generic_openai_rule():
+    """Venice speaks OpenAI chat completions under its own base URL, so
+    nothing provider-specific is needed. Without an entry in
+    `TRANSLATION_RULES` every Venice Offering is dropped before the
+    Generated Config, whatever Policy admits.
+    """
+    from litellm_maintainer.translate import TRANSLATION_RULES, generic_openai_compatible
+
+    assert TRANSLATION_RULES["venice"] is generic_openai_compatible
