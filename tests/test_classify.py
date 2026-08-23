@@ -396,3 +396,52 @@ def test_a_quota_exhaustion_survives_two_litellm_hops_to_a_worker_proxy():
 
     assert outcome.reason == "quota_exhausted"
     assert outcome.bucket == "self_healing"
+
+
+# ---------------------------------------------------------------------------
+# "Model <name> is not supported": the name decides.
+
+
+def test_a_model_not_supported_message_with_no_name_measures_nothing():
+    """Measured 2026-08-23 on opencode-zen: a model that answers is
+    sometimes refused with the name missing, while the transport layer
+    proves a non-empty model was sent. Excluding on it removes a working
+    model, so it must measure nothing.
+    """
+    outcome = classify(
+        provider="opencode-zen",
+        http_status=401,
+        body={"type": "error", "error": {"type": "ModelError", "message": "Model  is not supported"}},
+        now=CAPTURE_NOW,
+    )
+    assert outcome.bucket == "inconclusive"
+    assert outcome.reason == "unmeasured"
+
+
+def test_a_model_not_supported_message_naming_a_model_needs_the_operator():
+    outcome = classify(
+        provider="opencode-zen",
+        http_status=401,
+        body={
+            "type": "error",
+            "error": {"type": "ModelError", "message": "Model no-such-model-xyz is not supported"},
+        },
+        now=CAPTURE_NOW,
+    )
+    assert outcome.bucket == "needs_operator"
+    # The condition is the identifier, never the credential.
+    assert outcome.reason == "identifier_gone"
+
+
+def test_the_same_provider_still_reports_a_real_authentication_failure():
+    """The rule above must not swallow a genuine bad credential. The
+    provider states a different error type and message for it.
+    """
+    outcome = classify(
+        provider="opencode-zen",
+        http_status=401,
+        body={"type": "error", "error": {"type": "AuthError", "message": "Invalid API key."}},
+        now=CAPTURE_NOW,
+    )
+    assert outcome.bucket == "needs_operator"
+    assert outcome.reason == "authentication_failed"

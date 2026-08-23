@@ -142,6 +142,30 @@ _QUOTA_LIMIT_RE = re.compile(r"limit:\s*(\d+)")
 # matches a message that happens to use the Feed's words.
 _CALL_PERMANENTLY_GONE_WORDS = ("no longer available", "deprecated", "retired")
 _REMOVAL_WORDS = ("unavailable for free", "use this slug instead", "model not found")
+
+# One provider states "Model <name> is not supported" and answers HTTP
+# 401 for it. Two different conditions wear that one message, and the
+# NAME tells them apart.
+#
+# Measured 2026-08-23 on opencode-zen and opencode-go. A request naming
+# a model the provider does not serve is echoed back by name: "Model
+# no-such-model-xyz is not supported". A request naming a model that
+# WORKS is sometimes answered with the name missing: "Model  is not
+# supported", two spaces, while the transport layer proves a non-empty
+# model was sent. The same call succeeds seconds later.
+#
+# So an empty name is the provider dropping our model on its own side.
+# It measures nothing about the Offering, and Excluding on it removes a
+# working model. A stated name is the provider answering about the model
+# we asked for.
+#
+# Neither is an authentication failure. Both reach here with HTTP 401,
+# and the bare-401 rule in `_classify_by_status` reads that status as
+# `authentication_failed` -- which sends the operator to check a
+# credential that is correct. This is the same defect the Qwen
+# entitlement words fix below, and it is corrected the same way: read
+# the message, not the status.
+_MODEL_NOT_SUPPORTED_RE = re.compile(r"^model\s+(.*?)\s*is not supported\.?$")
 # "access to model denied" and "eligible for using" are the Qwen Token
 # Plan's wording for a model the account's plan does not include.
 # Measured 2026-07-26: it returns HTTP 403, so without these words the
@@ -273,6 +297,21 @@ def classify(
     # must not be Excluded for a fault in our own pipeline.
     if any(word in lower for word in _NOT_SERVED_WORDS):
         return Outcome(bucket=INCONCLUSIVE, reset_at=None, reason=REASON_ALIAS_NOT_SERVED)
+
+    # Read `_MODEL_NOT_SUPPORTED_RE` for why the captured name decides
+    # this, and why neither branch is an authentication failure.
+    not_supported = _MODEL_NOT_SUPPORTED_RE.match(lower.strip())
+    if not_supported is not None:
+        if not not_supported.group(1).strip():
+            # The provider named no model, so it answered about nothing.
+            # Excluding here would remove a model that answers.
+            return Outcome(bucket=INCONCLUSIVE, reset_at=None, reason=REASON_UNMEASURED)
+        # `needs_operator`, not `gone`: this provider is measured to
+        # state this message transiently, and `gone` makes the report
+        # advise removal from Policy. A human confirms before that.
+        return Outcome(
+            bucket=NEEDS_OPERATOR, reset_at=None, reason=REASON_IDENTIFIER_GONE
+        )
 
     if any(word in lower for word in _ENTITLEMENT_WORDS):
         return Outcome(
