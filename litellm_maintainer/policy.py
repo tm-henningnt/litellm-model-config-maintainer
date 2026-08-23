@@ -52,6 +52,7 @@ TOP_LEVEL_KEYS = {
     "headroom",
     "allowances",
     "draw_notes",
+    "roles",
 }
 CLIENT_FACING_VARIANT_KEYS = {
     "suffix",
@@ -78,6 +79,16 @@ REQUIRED_TOP_LEVEL_KEYS = TOP_LEVEL_KEYS - {
     "headroom",
     "allowances",
     "draw_notes",
+    "roles",
+}
+
+# The one key set a `roles.<role_name>` entry may carry. See `RoleRule`.
+ROLE_RULE_KEYS = {
+    "axis",
+    "limit",
+    "min_context",
+    "prefer",
+    "require_capabilities",
 }
 
 PROVIDER_RULE_KEYS = {
@@ -814,6 +825,42 @@ class AllowanceInfo:
 
 
 @dataclass(frozen=True)
+class RoleRule:
+    """One Role: a name a client calls, and how to rank the Aliases under it.
+
+    A Role is a Model Group in the Generated Config whose members are
+    Aliases this tool already offers, ordered best-first. It invents no
+    Offering and no credential: a Role can only ever name an Alias that
+    Selection already admitted and Health permits, so a Role cannot make
+    a model reachable that was not reachable without it.
+
+    `axis` is one of the Feed's own score names, the same set `guidance`
+    ranks by (`guidance.AXES`). The ranking is `guidance.derive`'s, not a
+    second copy of it, so a Role ladder and `guidance --for <axis>` can
+    never disagree.
+
+    `limit` caps how many Aliases enter the ladder. `None` takes every
+    Route that qualifies, which on a wide axis is most of the catalogue.
+
+    `min_context` admits only a Canonical Model the Feed sizes at or
+    above that many tokens. `prefer` biases the Route order toward a
+    cost basis, exactly as `guidance --prefer` does.
+
+    `require_capabilities` admits only a row carrying every named
+    capability, read from the Feed. This is what makes a vision Role a
+    fact rather than a hand-picked list that goes stale: a model that
+    gains vision joins the ladder on the next run, and one that is
+    withdrawn leaves it.
+    """
+
+    axis: str
+    limit: int | None = None
+    min_context: int | None = None
+    prefer: str | None = None
+    require_capabilities: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Policy:
     """The operator's full, validated Policy."""
 
@@ -853,6 +900,10 @@ class Policy:
     # nothing, so a Policy written before this feature behaves exactly
     # as before.
     headroom: Headroom = field(default_factory=Headroom)
+    # Role name -> its ranking rule. Empty by default: a Policy naming no
+    # `roles` block produces exactly the Generated Config this tool always
+    # produced, with no Role entry in `model_list`.
+    roles: dict[str, RoleRule] = field(default_factory=dict)
     # What the operator states about each Allowance itself — currently
     # only `tier` (CONTEXT.md, "Tier"). Keyed on the WHOLE Allowance id,
     # the same key `headroom.sources` and `entitlements` use. Empty when
@@ -1317,7 +1368,75 @@ def parse_policy(raw: Any) -> Policy:
         ),
         headroom=_parse_headroom(raw.get("headroom")),
         allowances=_parse_allowances(raw.get("allowances")),
+        roles=_parse_roles(raw.get("roles")),
     )
+
+
+def _parse_roles(raw: Any) -> dict[str, RoleRule]:
+    """Parse the `roles` block, or an empty mapping when absent.
+
+    Validate `axis` and `prefer` against `guidance`'s own vocabularies
+    rather than a copy kept here. A Role that named an axis the Feed does
+    not score would produce an empty ladder and no error, and the empty
+    ladder is indistinguishable from "nothing qualified today".
+
+    A Role name must not collide with an Alias. That check needs the
+    Feed, so it is not made here — `roles.build_role_entries` refuses on
+    a collision, the same way `plan` refuses on an Alias collision.
+    """
+    if raw is None:
+        return {}
+    from litellm_maintainer.guidance import AXES, PREFERABLE_BASES
+
+    raw = _require_dict(raw, "roles")
+    roles: dict[str, RoleRule] = {}
+    for role_name, entry in raw.items():
+        if not isinstance(role_name, str) or not role_name:
+            raise PolicyError("a 'roles' key must be a non-empty string")
+        prefix = f"roles.{role_name}"
+        entry = _require_dict(entry, prefix)
+        _reject_unknown_keys(entry, ROLE_RULE_KEYS, prefix)
+
+        axis = _require_str(entry.get("axis"), f"{prefix}.axis")
+        if axis not in AXES:
+            raise PolicyError(
+                f"{prefix}.axis is {axis!r}, which the Feed does not score. "
+                f"Use one of {sorted(AXES)}"
+            )
+
+        limit = entry.get("limit")
+        if limit is not None:
+            limit = _require_positive_int(limit, f"{prefix}.limit")
+
+        min_context = entry.get("min_context")
+        if min_context is not None:
+            min_context = _require_positive_int(min_context, f"{prefix}.min_context")
+
+        prefer = entry.get("prefer")
+        if prefer is not None:
+            prefer = _require_str(prefer, f"{prefix}.prefer")
+            if prefer not in PREFERABLE_BASES:
+                raise PolicyError(
+                    f"{prefix}.prefer is {prefer!r}. Use one of "
+                    f"{sorted(PREFERABLE_BASES)}"
+                )
+
+        required = entry.get("require_capabilities") or ()
+        if not isinstance(required, (list, tuple)) or not all(
+            isinstance(c, str) and c for c in required
+        ):
+            raise PolicyError(
+                f"{prefix}.require_capabilities must be a list of non-empty strings"
+            )
+
+        roles[role_name] = RoleRule(
+            axis=axis,
+            limit=limit,
+            min_context=min_context,
+            prefer=prefer,
+            require_capabilities=tuple(required),
+        )
+    return roles
 
 
 def _parse_client_facing_variants(raw: Any) -> ClientFacingVariants | None:

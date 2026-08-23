@@ -529,6 +529,48 @@ def _implausible_feed_refusal(*, feed, policy, force: bool) -> str | None:
     return None
 
 
+def _augment_with_roles(*, result, feed, policy, health, now, home):
+    """Append every Role's Model Group to a PlanResult, or refuse.
+
+    Called on the two paths that WRITE the Generated Config, never on a
+    read path: a Role is output, and `guidance` ranks the same Offerings
+    whether or not a Role names them.
+
+    Returns `(result, refusal)`. `refusal` is a string when a Role name
+    collides with an Alias, and the caller must write nothing — the same
+    contract `plan` uses for an Alias collision.
+    """
+    if not policy.roles:
+        return result, None
+
+    from dataclasses import replace as _replace
+
+    from litellm_maintainer.headroom import read_headroom
+    from litellm_maintainer.paths import headroom_path
+    from litellm_maintainer.roles import build_role_entries
+
+    headroom_state = read_headroom(headroom_path(home)) if home is not None else None
+    role_result = build_role_entries(
+        feed=feed,
+        policy=policy,
+        health=health,
+        report=result.report,
+        now=now,
+        entries=list(result.config.get("model_list") or []),
+        headroom_state=headroom_state,
+    )
+    if role_result.refusal:
+        return result, role_result.refusal
+    if not role_result.entries:
+        return result, None
+
+    config = dict(result.config)
+    config["model_list"] = list(config.get("model_list") or []) + list(role_result.entries)
+    annotations = dict(result.annotations or {})
+    annotations.update(role_result.annotations or {})
+    return _replace(result, config=config, annotations=annotations), None
+
+
 def _apply_safety_rail_and_write(
     *,
     result,
@@ -573,7 +615,11 @@ def _apply_safety_rail_and_write(
     dropped_aliases = removed_aliases(previous_config, result.config)
 
     validation_problems = validate_config_before_write(
-        result.config, credential_resolver=_credential_resolver(env_path)
+        result.config,
+        credential_resolver=_credential_resolver(env_path),
+        # A Role name may repeat: a Role IS a Model Group, built from
+        # repeated `model_name` entries. See `litellm_maintainer.roles`.
+        role_names=frozenset(policy.roles),
     )
     if validation_problems:
         print(redact("Refused to write: the config failed validation.", mapping), file=sys.stderr)
@@ -742,6 +788,20 @@ def cmd_generate(args: argparse.Namespace) -> int:
             ),
             file=sys.stderr,
         )
+        return 1
+
+    # Roles ride on the same ranking `guidance` publishes. See
+    # `litellm_maintainer.roles`.
+    result, role_refusal = _augment_with_roles(
+        result=result,
+        feed=feed,
+        policy=policy,
+        health=health_state.offerings,
+        now=now,
+        home=home,
+    )
+    if role_refusal:
+        print(redact(role_refusal, mapping), file=sys.stderr)
         return 1
 
     out_path = Path(args.out)
@@ -2684,6 +2744,20 @@ def cmd_run(
     # command chains probe, reduce, then plan, so `plan` always sees
     # this run's Probe results.
     result = plan(feed=feed, policy=policy, health=next_health.offerings, now=now)
+
+    # Roles ride on the same ranking `guidance` publishes, built from the
+    # Health State this run just wrote. See `litellm_maintainer.roles`.
+    result, role_refusal = _augment_with_roles(
+        result=result,
+        feed=feed,
+        policy=policy,
+        health=next_health.offerings,
+        now=now,
+        home=home,
+    )
+    if role_refusal:
+        print(redact(role_refusal, mapping), file=sys.stderr)
+        return 1
 
     # 4. The safety rail, then write, snapshot and prune -- the exact
     # sequence `cmd_generate` applies, factored once so the two commands

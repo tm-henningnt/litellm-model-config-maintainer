@@ -150,14 +150,23 @@ def refusal_for_failed_feed_fetch(error: Exception) -> str:
 
 
 def validate_config_before_write(
-    config: dict[str, Any], *, credential_resolver: Callable[[str], str | None]
+    config: dict[str, Any],
+    *,
+    credential_resolver: Callable[[str], str | None],
+    role_names: frozenset[str] = frozenset(),
 ) -> tuple[str, ...]:
     """Structural checks the Generator runs on `config` before it writes.
 
     Returns one message per problem found, or an empty tuple when
     `config` is safe to write. Checks three things (spec, "Safety"):
 
-    1. Every `model_name` (Alias) is unique.
+    1. Every `model_name` (Alias) is unique. A name in `role_names` is
+       exempt: a Role IS a Model Group, and litellm builds a group from
+       repeated `model_name` entries, so repetition is the mechanism
+       rather than a collision. Pass `frozenset(policy.roles)`. A Role
+       sharing a name with an Alias is refused earlier, by
+       `roles.build_role_entries` — the exemption here must never be
+       what lets that through.
     2. Every entry names a model: `litellm_params.model` is a non-empty
        string.
     3. Every credential variable resolves. A credential variable is an
@@ -192,7 +201,7 @@ def validate_config_before_write(
         alias = entry.get("model_name")
         seen_aliases[alias] = seen_aliases.get(alias, 0) + 1
     for alias, count in seen_aliases.items():
-        if count > 1:
+        if count > 1 and alias not in role_names:
             problems.append(f"Alias {alias!r} appears {count} times; every Alias must be unique.")
 
     for entry in entries:
