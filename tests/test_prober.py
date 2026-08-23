@@ -24,6 +24,7 @@ from litellm_maintainer.sse import read_stream
 from litellm_maintainer.prober import (
     PROBE_MAX_TOKENS,
     PROBE_REASONING_MAX_TOKENS,
+    PROBE_SLOW_TIMEOUT_SECONDS,
     build_probe_payload,
     ProbeTarget,
     TransportResponse,
@@ -1030,3 +1031,62 @@ def test_the_probe_payload_sends_the_targets_budget_when_it_states_one():
 
     wider = replace(target, max_tokens=PROBE_REASONING_MAX_TOKENS)
     assert build_probe_payload(wider)["max_tokens"] == PROBE_REASONING_MAX_TOKENS
+
+
+# ---------------------------------------------------------------------------
+# Retry once at a longer timeout on a read that timed out.
+
+
+def test_a_timed_out_read_is_retried_once_at_the_slow_budget():
+    """Measured 2026-08-23 on `opencode-go:ox-alpha-free`: 67 seconds to
+    the first byte, then a normal answer. At the short budget a working
+    model reads as broken.
+    """
+    answered_body = {"choices": [{"message": {"role": "assistant", "content": "pong"}}]}
+    responses = [
+        TransportResponse(http_status=None, body=None, transport="timeout"),
+        TransportResponse(http_status=200, body=answered_body),
+    ]
+    timeouts: list[float | None] = []
+
+    def fake_transport(target: ProbeTarget) -> TransportResponse:
+        timeouts.append(target.timeout)
+        return responses[len(timeouts) - 1]
+
+    sleeps: list[float] = []
+    outcome = probe_offering(
+        ProbeTarget(key="opencode-go:ox-alpha-free", provider_id="opencode-go"),
+        transport=fake_transport,
+        now=lambda: NOW,
+        sleep=lambda seconds: sleeps.append(seconds),
+    )
+
+    assert timeouts == [None, PROBE_SLOW_TIMEOUT_SECONDS]
+    assert sleeps == []  # nothing was rate limited, so nothing waits
+    assert outcome.bucket == ANSWERED
+
+
+def test_an_endpoint_that_times_out_at_both_budgets_still_fails():
+    timeouts: list[float | None] = []
+
+    def fake_transport(target: ProbeTarget) -> TransportResponse:
+        timeouts.append(target.timeout)
+        return TransportResponse(http_status=None, body=None, transport="timeout")
+
+    outcome = probe_offering(
+        ProbeTarget(key="opencode-go:dead", provider_id="opencode-go"),
+        transport=fake_transport,
+        now=lambda: NOW,
+        sleep=lambda seconds: None,
+    )
+
+    assert timeouts == [None, PROBE_SLOW_TIMEOUT_SECONDS]  # retried once, and only once
+    assert outcome.bucket == "self_healing"
+    assert outcome.reason == "timeout"
+
+
+def test_the_transport_sends_the_targets_timeout_when_it_states_one():
+    target = _target()
+    assert target.timeout is None  # the transport falls back to its own default
+    slow = replace(target, timeout=PROBE_SLOW_TIMEOUT_SECONDS)
+    assert slow.timeout == PROBE_SLOW_TIMEOUT_SECONDS

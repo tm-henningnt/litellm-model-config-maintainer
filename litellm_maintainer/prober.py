@@ -34,6 +34,8 @@ from litellm_maintainer.classify import (
     NEEDS_OPERATOR,
     REASON_MALFORMED_RESPONSE,
     REASON_RATE_LIMITED,
+    REASON_TIMEOUT,
+    SELF_HEALING,
     Outcome,
     classify,
 )
@@ -91,6 +93,20 @@ PROBE_MAX_TOKENS = 64
 # ceiling here costs nothing on a normal sweep.
 PROBE_REASONING_MAX_TOKENS = 512
 
+# Seconds one Probe waits for a response.
+PROBE_TIMEOUT_SECONDS = 15.0
+
+# The budget one retry waits after a read timed out. Measured 2026-08-23
+# on `opencode-go:ox-alpha-free`: 67 seconds to the FIRST byte, then a
+# normal answer. A stealth or preview model can think for a minute
+# before it emits anything, and at 15 seconds it reads as broken.
+#
+# Retrying costs little on a dead endpoint. A refused connection and an
+# unresolvable host both fail immediately, on the second attempt as on
+# the first; only a host that accepts the connection and then holds it
+# spends this budget.
+PROBE_SLOW_TIMEOUT_SECONDS = 90.0
+
 # A rate-limit-shaped failure that measured nothing (classify returns
 # `inconclusive` with `reason="rate_limited"`) is retried once, after
 # this backoff, before it counts. See docs/gotchas.md, "Probe
@@ -137,6 +153,10 @@ class ProbeTarget:
     # `PROBE_MAX_TOKENS`. `probe_offering` sets it, and only to retry a
     # reasoning model that emitted no content inside the first budget.
     max_tokens: int | None = None
+    # Seconds one Probe of this target waits. `None` means
+    # `PROBE_TIMEOUT_SECONDS`. `probe_offering` sets it, and only to
+    # retry a target whose first attempt timed out.
+    timeout: float | None = None
 
     def request_model(self) -> str:
         """Return the model identifier a transport would call.
@@ -453,6 +473,14 @@ def probe_offering(
     retry tells the two apart: a broken model answers the same way at
     both budgets. There is no backoff, because nothing was rate limited.
 
+    A read that timed out — `classify` returns `self_healing` with
+    `reason="timeout"` — is retried immediately, with
+    `PROBE_SLOW_TIMEOUT_SECONDS` instead of `PROBE_TIMEOUT_SECONDS`. A
+    stealth or preview model can hold the connection for a minute before
+    it emits one byte, and at the shorter budget that reads as broken.
+    Read `PROBE_SLOW_TIMEOUT_SECONDS` for why this costs little on an
+    endpoint that is genuinely down.
+
     Whatever the second attempt classifies to is the final `Outcome`,
     even if it fails again.
     """
@@ -475,6 +503,12 @@ def probe_offering(
         and offering.max_tokens is None
     ):
         retry_target = replace(offering, max_tokens=PROBE_REASONING_MAX_TOKENS)
+    elif (
+        outcome.bucket == SELF_HEALING
+        and outcome.reason == REASON_TIMEOUT
+        and offering.timeout is None
+    ):
+        retry_target = replace(offering, timeout=PROBE_SLOW_TIMEOUT_SECONDS)
     if retry_target is not None:
         response = transport(retry_target)
         at = now()
@@ -682,7 +716,10 @@ def probe_credential(
 
 
 def live_transport(
-    target: ProbeTarget, *, credential: str | None = None, timeout: float = 15.0
+    target: ProbeTarget,
+    *,
+    credential: str | None = None,
+    timeout: float = PROBE_TIMEOUT_SECONDS,
 ) -> TransportResponse:
     """Call a real provider. The orchestrator decides when this runs.
 
@@ -717,7 +754,9 @@ def live_transport(
     payload = build_probe_payload(target)
 
     try:
-        response = httpx.post(url, json=payload, headers=headers, timeout=timeout)
+        response = httpx.post(
+            url, json=payload, headers=headers, timeout=target.timeout or timeout
+        )
     except httpx.HTTPError:
         return TransportResponse(http_status=None, body=None, transport="timeout")
 
