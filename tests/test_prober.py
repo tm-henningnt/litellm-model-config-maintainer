@@ -25,12 +25,14 @@ from litellm_maintainer.prober import (
     PROBE_MAX_TOKENS,
     PROBE_REASONING_MAX_TOKENS,
     PROBE_SLOW_TIMEOUT_SECONDS,
+    build_probe_headers,
     build_probe_payload,
     ProbeTarget,
     TransportResponse,
     build_probe_url,
     build_worklist,
     format_summary_line,
+    live_transport,
     probe_offering,
     probe_offerings,
 )
@@ -425,10 +427,12 @@ def test_a_rate_limit_shaped_failure_is_retried_once_after_a_backoff_before_it_c
         TransportResponse(http_status=200, body=answered_body),
     ]
     calls: list[TransportResponse] = []
+    session_ids: list[str | None] = []
 
     def fake_transport(target: ProbeTarget) -> TransportResponse:
         response = responses[len(calls)]
         calls.append(response)
+        session_ids.append(target.opencode_session_id)
         return response
 
     sleeps: list[float] = []
@@ -441,8 +445,59 @@ def test_a_rate_limit_shaped_failure_is_retried_once_after_a_backoff_before_it_c
     )
 
     assert len(calls) == 2
+    assert session_ids[0] is not None and session_ids[0] == session_ids[1]
     assert sleeps == [5.0]
     assert outcome.bucket == ANSWERED
+
+
+def test_probe_headers_are_provider_specific_and_preserve_a_given_session_id():
+    opencode = ProbeTarget(
+        key="opencode-go:model-a",
+        provider_id="opencode-go",
+        opencode_session_id="probe-session-123",
+    )
+    other = ProbeTarget(key="groq:model-a", provider_id="groq")
+
+    assert build_probe_headers(opencode) == {
+        "Content-Type": "application/json",
+        "x-opencode-session": "probe-session-123",
+    }
+    assert build_probe_headers(other) == {"Content-Type": "application/json"}
+
+
+def test_live_transport_sends_a_generated_open_code_session_header(monkeypatch):
+    import httpx
+
+    sent: dict[str, dict[str, str]] = {}
+
+    class Response:
+        status_code = 200
+        text = _sse_body({"choices": [{"delta": {"content": "pong"}}]})
+
+    def fake_post(url, *, json, headers, timeout):
+        sent["headers"] = headers
+        return Response()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    target = ProbeTarget(
+        key="opencode-go:model-a",
+        provider_id="opencode-go",
+        declared=DeclaredOffering(
+            alias="opencode-go-model-a",
+            litellm_params={
+                "model": "model-a",
+                "api_base": "https://opencode.ai/zen/go/v1",
+            },
+        ),
+    )
+
+    live_transport(target, credential="provider-key")
+
+    assert sent["headers"]["Content-Type"] == "application/json"
+    assert sent["headers"]["Authorization"] == "Bearer provider-key"
+    assert sent["headers"]["x-opencode-session"].startswith(
+        "litellm-maintainer-probe-"
+    )
 
 
 def test_a_probe_that_remains_ambiguous_records_inconclusive_and_health_state_does_not_change(

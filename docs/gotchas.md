@@ -708,6 +708,28 @@ The flag applies to every `openai/` provider, and litellm offers no
 per-deployment override. Check each Alias that uses that prefix after you
 set it.
 
+## OpenCode Go needs a stable session header through a proxy
+
+OpenCode Go asks every client to send a stable per-conversation
+`x-opencode-session` header. It uses that identity for routing and prompt
+caching, and requests that omit it may fail. See the [OpenCode Go
+documentation](https://dev.opencode.ai/docs/go/) and LiteLLM issue
+[#39503](https://github.com/BerriAI/litellm/issues/39503).
+
+This proxy already sets
+`general_settings.forward_client_headers_to_llm_api: true`, so LiteLLM
+forwards a client-supplied `x-opencode-session` (and other `x-*` headers) to
+OpenCode Go. That setting does not create a session id. Do not put one static
+value in `extra_headers`: it would make unrelated conversations share one
+upstream session. A client using this proxy must send its own stable id for
+each conversation, or a wrapper must add one before the request reaches
+LiteLLM.
+
+The maintainer's own direct Prober and proxy smoke checker are synthetic
+clients, so they generate a fresh session id for each OpenCode Go check. The
+direct Prober reuses that id if it retries the same check; neither checker
+uses one global id or adds the header for another provider.
+
 ## litellm requires created_at, and some providers omit it
 
 The OpenAI Responses specification includes `created_at`. Not every

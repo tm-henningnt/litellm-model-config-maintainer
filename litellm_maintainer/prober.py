@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
@@ -46,6 +47,13 @@ from litellm_maintainer.sse import StreamedRead, read_stream
 from litellm_maintainer.reduce import HealthState, OfferingHealth
 
 OfferingKey = str
+OPENCODE_GO_PROVIDER_ID = "opencode-go"
+OPENCODE_SESSION_HEADER = "x-opencode-session"
+
+
+def new_opencode_session_id() -> str:
+    """Return an opaque session id for one synthetic OpenCode Go check."""
+    return f"litellm-maintainer-probe-{uuid.uuid4().hex}"
 
 # The probe request is deliberately tiny: one short user message and a
 # small `max_tokens`. It carries no `temperature` key at all. The
@@ -157,6 +165,9 @@ class ProbeTarget:
     # `PROBE_TIMEOUT_SECONDS`. `probe_offering` sets it, and only to
     # retry a target whose first attempt timed out.
     timeout: float | None = None
+    # One synthetic OpenCode Go conversation. `probe_offering` creates it
+    # once and carries it through any retry; other providers leave it unset.
+    opencode_session_id: str | None = None
 
     def request_model(self) -> str:
         """Return the model identifier a transport would call.
@@ -484,6 +495,9 @@ def probe_offering(
     Whatever the second attempt classifies to is the final `Outcome`,
     even if it fails again.
     """
+    if offering.provider_id == OPENCODE_GO_PROVIDER_ID and not offering.opencode_session_id:
+        offering = replace(offering, opencode_session_id=new_opencode_session_id())
+
     response = transport(offering)
     at = now()
     outcome = classify(
@@ -684,6 +698,21 @@ def build_probe_url(base_url: str, provider_id: str, protocol: str | None = None
     return base_url.rstrip("/") + completions_path_for(provider_id, protocol)
 
 
+def build_probe_headers(target: ProbeTarget) -> dict[str, str]:
+    """Build the headers for one direct Probe request.
+
+    OpenCode Go requires a stable session id. A direct call to
+    `live_transport` outside `probe_offering` has no retry context, so it
+    receives a fresh id for that single request.
+    """
+    headers = {"Content-Type": "application/json"}
+    if target.provider_id == OPENCODE_GO_PROVIDER_ID:
+        headers[OPENCODE_SESSION_HEADER] = (
+            target.opencode_session_id or new_opencode_session_id()
+        )
+    return headers
+
+
 _ENV_CREDENTIAL_REFERENCE = "os.environ/"
 
 
@@ -747,7 +776,7 @@ def live_transport(
 
     url = build_probe_url(base_url, target.provider_id, target.protocol())
 
-    headers = {"Content-Type": "application/json"}
+    headers = build_probe_headers(target)
     if credential:
         headers["Authorization"] = f"Bearer {credential}"
 

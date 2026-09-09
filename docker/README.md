@@ -74,7 +74,7 @@ time, and because the database has no reason to read a provider key.
 Build from the repository root:
 
 ```
-docker build -f docker/Dockerfile -t litellm-patched:1.97.0 .
+docker build -f docker/Dockerfile -t litellm-patched:1.100.0 .
 ```
 
 ## Start

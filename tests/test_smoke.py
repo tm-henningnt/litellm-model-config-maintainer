@@ -25,10 +25,12 @@ from litellm_maintainer.smoke import (
     STATUS_INCONCLUSIVE,
     STATUS_UNVERIFIED,
     build_smoke_entries,
+    build_smoke_headers,
     build_smoke_payload,
     extract_streamed_content,
     format_smoke_line,
     group_by_rule,
+    live_smoke_transport,
     pick_healthiest,
     run_smoke_check,
 )
@@ -184,6 +186,9 @@ def test_the_smoke_check_makes_one_call_per_distinct_translation_rule_not_per_of
     # groq, openrouter, and the shared generic_openai_compatible rule
     # (cline + opencode-go): three distinct rules from five Offerings.
     assert len(grouped) == 3
+    assert next(
+        entry for entry in entries if entry.key == "opencode-go:model-e"
+    ).provider_id == "opencode-go"
 
     calls: list[str] = []
 
@@ -655,6 +660,61 @@ def test_the_smoke_payload_requests_a_streamed_response():
     entry = SmokeEntry(key="groq:model", alias="claude-groq-model", rule="native_prefix[groq]")
     payload = build_smoke_payload(entry)
     assert payload["stream"] is True
+
+
+def test_smoke_headers_add_an_open_code_session_only_for_open_code_go():
+    opencode = SmokeEntry(
+        key="opencode-go:model",
+        alias="claude-opencode-go-model",
+        rule="generic_openai_compatible[opencode-go]",
+        provider_id="opencode-go",
+    )
+    other = SmokeEntry(
+        key="groq:model",
+        alias="claude-groq-model",
+        rule="native_prefix[groq]",
+        provider_id="groq",
+    )
+
+    assert build_smoke_headers(opencode, opencode_session_id="smoke-session-123") == {
+        "Content-Type": "application/json",
+        "x-opencode-session": "smoke-session-123",
+    }
+    assert build_smoke_headers(other) == {"Content-Type": "application/json"}
+
+
+def test_live_smoke_transport_sends_a_generated_open_code_session_header(monkeypatch):
+    import httpx
+
+    sent: dict[str, dict[str, str]] = {}
+
+    class Response:
+        status_code = 200
+        text = _sse({"choices": [{"delta": {"content": "pong"}}]})
+
+    def fake_post(url, *, json, headers, timeout):
+        sent["headers"] = headers
+        return Response()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    entry = SmokeEntry(
+        key="opencode-go:model",
+        alias="claude-opencode-go-model",
+        rule="generic_openai_compatible[opencode-go]",
+        provider_id="opencode-go",
+    )
+
+    live_smoke_transport(
+        entry,
+        base_url="http://127.0.0.1:4000/v1/chat/completions",
+        credential="proxy-key",
+    )
+
+    assert sent["headers"]["Content-Type"] == "application/json"
+    assert sent["headers"]["Authorization"] == "Bearer proxy-key"
+    assert sent["headers"]["x-opencode-session"].startswith(
+        "litellm-maintainer-probe-"
+    )
 
 
 def test_removing_the_stream_flag_would_reintroduce_the_false_failure_and_this_test_catches_it():

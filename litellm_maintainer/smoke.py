@@ -46,15 +46,18 @@ from typing import Any, Callable
 from litellm_maintainer.classify import ANSWERED, INCONCLUSIVE, Outcome, classify
 from litellm_maintainer.feed import Feed, Offering
 from litellm_maintainer.naming import alias_for
-from litellm_maintainer.prober import _streamed_body
-from litellm_maintainer.sse import read_stream
-from litellm_maintainer.policy import Policy
 from litellm_maintainer.prober import (
+    OPENCODE_GO_PROVIDER_ID,
+    OPENCODE_SESSION_HEADER,
     TransportResponse,
     _declared_admitted,
     _declared_provider_id,
     _discovered_admitted,
+    _streamed_body,
+    new_opencode_session_id,
 )
+from litellm_maintainer.sse import read_stream
+from litellm_maintainer.policy import Policy
 from litellm_maintainer.reduce import OfferingHealth
 from litellm_maintainer.translate import (
     ENVELOPE_HANDLER_PREFIX,
@@ -114,6 +117,10 @@ class SmokeEntry:
     # joins its rule's group, so the rule reports UNVERIFIED with the
     # reason instead of vanishing from the report entirely.
     callable_by_proxy: bool = True
+    # The provider behind this Alias. It is optional for hand-built test
+    # entries, but generated entries carry it so provider-specific headers
+    # can be selected without parsing the rule label.
+    provider_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -247,13 +254,25 @@ def build_smoke_entries(*, feed: Feed, policy: Policy) -> tuple[SmokeEntry, ...]
             continue
         alias = alias_for(policy, offering.id)
         entries.append(
-            SmokeEntry(key=offering_id, alias=alias, rule=_rule_label(offering, params))
+            SmokeEntry(
+                key=offering_id,
+                alias=alias,
+                rule=_rule_label(offering, params),
+                provider_id=offering.provider_id,
+            )
         )
 
     declared_probeable, _passthrough = _declared_admitted(policy)
     for alias, declared in sorted(declared_probeable.items()):
         rule = f"{_DECLARED_RULE_PREFIX}:{_declared_provider_id(declared)}"
-        entries.append(SmokeEntry(key=alias, alias=alias, rule=rule))
+        entries.append(
+            SmokeEntry(
+                key=alias,
+                alias=alias,
+                rule=rule,
+                provider_id=_declared_provider_id(declared),
+            )
+        )
 
     # A Passthrough Auth Declared Offering. The proxy can call it only
     # when it holds the credential itself (`proxy_authenticated`).
@@ -274,6 +293,7 @@ def build_smoke_entries(*, feed: Feed, policy: Policy) -> tuple[SmokeEntry, ...]
                 key=declared.alias,
                 alias=declared.alias,
                 rule=rule,
+                provider_id=_declared_provider_id(declared),
                 callable_by_proxy=declared.proxy_authenticated,
             )
         )
@@ -446,6 +466,24 @@ def build_smoke_payload(entry: SmokeEntry) -> dict[str, Any]:
     }
 
 
+def build_smoke_headers(
+    entry: SmokeEntry, *, opencode_session_id: str | None = None
+) -> dict[str, str]:
+    """Build headers for one proxy smoke request.
+
+    Each smoke request is its own synthetic conversation, so an OpenCode Go
+    entry gets a fresh session id. The optional argument makes the stable
+    value explicit in tests and for callers that need to reuse one request
+    identity.
+    """
+    headers = {"Content-Type": "application/json"}
+    if entry.provider_id == OPENCODE_GO_PROVIDER_ID:
+        headers[OPENCODE_SESSION_HEADER] = (
+            opencode_session_id or new_opencode_session_id()
+        )
+    return headers
+
+
 extract_streamed_content = read_stream
 
 
@@ -482,7 +520,7 @@ def live_smoke_transport(
     """
     import httpx
 
-    headers = {"Content-Type": "application/json"}
+    headers = build_smoke_headers(entry)
     if credential:
         headers["Authorization"] = f"Bearer {credential}"
 
